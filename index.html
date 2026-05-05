@@ -3,174 +3,201 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WoodCut Pro - Final Edition</title>
+    <title>WoodCut Pro - Full Edition</title>
+    <!-- Подключаем библиотеки с параметром crossorigin для обхода блокировок -->
+    <script src="https://unpkg.com" crossorigin></script>
+    <script src="https://unpkg.com" crossorigin></script>
+    <script src="https://unpkg.com"></script>
+    <script src="https://tailwindcss.com"></script>
+    <script src="https://unpkg.com"></script>
     <script src="https://cloudflare.com"></script>
     <style>
-        :root { --amber: #d97706; --slate: #1e293b; }
-        body { font-family: system-ui, -apple-system, sans-serif; background: #f1f5f9; margin: 0; display: flex; flex-direction: column; height: 100vh; color: var(--slate); }
-        header { background: white; padding: 15px 30px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 12px; }
-        .logo { background: var(--amber); color: white; padding: 8px; border-radius: 8px; font-weight: 900; }
-        .main { display: flex; flex: 1; overflow: hidden; padding: 20px; gap: 20px; }
-        .sidebar { width: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
-        .content { flex: 1; background: white; border-radius: 20px; border: 1px solid #e2e8f0; overflow-y: auto; padding: 25px; }
-        .card { background: white; padding: 20px; border-radius: 15px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        h3 { margin: 0 0 15px 0; font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: 0.05em; }
-        input, select { border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; width: 100%; box-sizing: border-box; font-size: 14px; margin-bottom: 10px; }
-        button { cursor: pointer; border: none; border-radius: 10px; font-weight: bold; transition: 0.2s; width: 100%; }
-        .btn-add { background: #f1f5f9; color: #475569; padding: 10px; margin-top: 5px; }
-        .btn-calc { background: var(--amber); color: white; padding: 18px; font-size: 16px; margin-top: 10px; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.2); }
-        .btn-calc:hover { background: #b45309; transform: translateY(-1px); }
-        .board-view { margin-bottom: 30px; border: 2px solid #e2e8f0; border-radius: 12px; position: relative; background: white; overflow: hidden; }
-        .part-rect { position: absolute; background: #fbbf24; border: 1px solid #b45309; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; color: #92400e; box-sizing: border-box; }
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab { background: #e2e8f0; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; }
-        .tab.active { background: var(--amber); color: white; }
-        #three-container { width: 100%; height: 500px; border-radius: 15px; overflow: hidden; background: #f8fafc; display: none; }
+        body { margin: 0; padding: 0; background-color: #f1f5f9; font-family: sans-serif; }
+        #root { min-height: 100vh; }
+        canvas { display: block; border-radius: 1rem; cursor: move; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body>
+    <div id="root"></div>
 
-<header>
-    <div class="logo">W</div>
-    <h2 style="margin:0; font-size: 20px; letter-spacing: -0.5px;">WoodCut Pro <span style="font-weight: 300; color: #94a3b8;">| v2.0</span></h2>
-</header>
+    <script type="text/babel">
+        const { useState, useMemo, useEffect, useRef } = React;
+        const { Trash2, Plus, Calculator, Square, Layers, Scissors, Table: TableIcon, ChevronDown, ChevronUp, Maximize2, Hash, Settings2, Box, BoxSelect, Copy } = lucide;
 
-<div class="main">
-    <div class="sidebar">
-        <div class="card">
-            <h3>Заготовка (Лист)</h3>
-            <input type="number" id="sL" value="2000" placeholder="Длина (L)">
-            <input type="number" id="sW" value="300" placeholder="Ширина (W)">
-            <input type="number" id="sT" value="40" placeholder="Толщина (T)">
-        </div>
-        <div class="card">
-            <h3>Детали</h3>
-            <div id="parts-input">
-                <div style="display: flex; gap: 5px;">
-                    <input type="number" placeholder="L" value="800">
-                    <input type="number" placeholder="W" value="120">
-                    <input type="number" placeholder="Шт" value="4">
+        // --- ПОЛНЫЙ КОД ПРИЛОЖЕНИЯ ---
+        const App = () => {
+            const UNITS = {
+                mm: { label: 'мм', factor: 1, precision: 0 },
+                cm: { label: 'см', factor: 10, precision: 1 },
+                m: { label: 'м', factor: 1000, precision: 3 },
+                in: { label: 'дюйм', factor: 25.4, precision: 2 }
+            };
+
+            const [unit, setUnit] = useState('mm');
+            const [resawPriority, setResawPriority] = useState(true);
+            const [stock, setStock] = useState([{ id: 1, length: 2000, width: 300, thickness: 40, count: 2, enabled: true }]);
+            const [parts, setParts] = useState([
+                { id: 1, length: 820, width: 92, thickness: 18, count: 2, enabled: true },
+                { id: 2, length: 300, width: 100, thickness: 20, count: 4, enabled: true }
+            ]);
+            const [kerf, setKerf] = useState(3);
+            const [results, setResults] = useState(null);
+            const [activeTab, setActiveTab] = useState('layers');
+            const [expandedBoards, setExpandedBoards] = useState({});
+
+            const toBase = (val, currentUnit) => (parseFloat(val) || 0) * UNITS[currentUnit].factor;
+            const fromBase = (val, currentUnit) => (val / UNITS[currentUnit].factor).toFixed(UNITS[currentUnit].precision);
+
+            const updateItemValue = (setter, id, field, value) => {
+                const baseValue = toBase(value, unit);
+                setter(prev => prev.map(item => item.id === id ? { ...item, [field]: baseValue } : item));
+            };
+
+            const calculateLayout = () => {
+                // Алгоритм раскроя
+                const allParts = [];
+                parts.filter(p => p.enabled).forEach(p => {
+                    for(let i=0; i<p.count; i++) allParts.push({...p, instId: `${p.id}-${i}`, placed: false});
+                });
+                
+                allParts.sort((a,b) => (b.length * b.width) - (a.length * a.width));
+                
+                const layouts = [];
+                stock.filter(s => s.enabled).forEach((s, sIdx) => {
+                    for(let i=0; i<s.count; i++) {
+                        const boardRes = { ...s, boardId: `b-${s.id}-${i}`, displayIdx: i+1, allPlacedParts: [], layers: [] };
+                        let spaces = [{ x: 0, y: 0, w: s.length, h: s.width }];
+                        
+                        allParts.forEach(p => {
+                            if (p.placed) return;
+                            for (let j=0; j<spaces.length; j++) {
+                                let sp = spaces[j];
+                                if (p.length <= sp.w && p.width <= sp.h) {
+                                    let stack = resawPriority ? Math.floor((s.thickness + kerf) / (p.thickness + kerf)) : 1;
+                                    let toPlace = allParts.filter(x => !x.placed && x.length === p.length && x.width === p.width).slice(0, stack);
+                                    
+                                    let curZ = 0;
+                                    toPlace.forEach(tp => {
+                                        boardRes.allPlacedParts.push({ ...tp, x: sp.x, y: sp.y, z: curZ, color: '#f59e0b' });
+                                        tp.placed = true;
+                                        curZ += tp.thickness + kerf;
+                                    });
+
+                                    let next = [];
+                                    if (sp.w - p.length - kerf > 0) next.push({ x: sp.x + p.length + kerf, y: sp.y, w: sp.w - p.length - kerf, h: sp.h });
+                                    if (sp.h - p.width - kerf > 0) next.push({ x: sp.x, y: sp.y + p.width + kerf, w: p.length, h: sp.h - p.width - kerf });
+                                    spaces.splice(j, 1, ...next);
+                                    return;
+                                }
+                            }
+                        });
+                        if (boardRes.allPlacedParts.length > 0) layouts.push(boardRes);
+                    }
+                });
+                setResults({ layouts });
+            };
+
+            const ThreeDView = ({ board }) => {
+                const ref = useRef();
+                useEffect(() => {
+                    const THREE = window.THREE;
+                    const sc = new THREE.Scene(); sc.background = new THREE.Color(0xf8fafc);
+                    const cam = new THREE.PerspectiveCamera(45, ref.current.clientWidth / 450, 1, 20000);
+                    const ren = new THREE.WebGLRenderer({ antialias: true });
+                    ren.setSize(ref.current.clientWidth, 450);
+                    ref.current.appendChild(ren.domElement);
+                    
+                    sc.add(new THREE.AmbientLight(0xffffff, 0.8));
+                    const l = new THREE.DirectionalLight(0xffffff, 0.6); l.position.set(1000, 1000, 1000); sc.add(l);
+                    
+                    const group = new THREE.Group();
+                    const bG = new THREE.BoxGeometry(board.length, board.thickness, board.width);
+                    const bM = new THREE.MeshPhongMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.3 });
+                    group.add(new THREE.Mesh(bG, bM));
+
+                    board.allPlacedParts.forEach(p => {
+                        const pG = new THREE.BoxGeometry(p.length, p.thickness, p.width);
+                        const pM = new THREE.Mesh(pG, new THREE.MeshPhongMaterial({ color: 0xf59e0b }));
+                        pM.position.set(p.x + p.length/2 - board.length/2, p.z + p.thickness/2 - board.thickness/2, p.y + p.width/2 - board.width/2);
+                        group.add(pM);
+                    });
+                    
+                    sc.add(group);
+                    cam.position.set(board.length, board.length, board.length);
+                    cam.lookAt(0,0,0);
+                    const anim = () => { ren.render(sc, cam); group.rotation.y += 0.002; requestAnimationFrame(anim); };
+                    anim();
+                    return () => { ren.dispose(); if(ref.current) ref.current.innerHTML = ''; };
+                }, [board]);
+                return <div ref={ref} className="w-full rounded-2xl overflow-hidden border shadow-inner bg-slate-50" />;
+            };
+
+            return (
+                <div className="p-6 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <div className="lg:col-span-4 space-y-4">
+                        <header className="bg-white p-4 rounded-2xl shadow-sm border flex items-center gap-3">
+                            <div className="bg-amber-600 p-2 rounded-xl text-white"><Calculator /></div>
+                            <h1 className="text-xl font-black uppercase tracking-tight">WoodCut Pro</h1>
+                        </header>
+                        
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border space-y-4">
+                            <h3 className="text-xs font-bold text-slate-400 uppercase">Настройки</h3>
+                            <select value={unit} onChange={e => setUnit(e.target.value)} className="w-full p-2 border rounded-xl font-bold">
+                                {Object.keys(UNITS).map(u => <option key={u} value={u}>{UNITS[u].label}</option>)}
+                            </select>
+                            <div>
+                                <label className="text-xs text-slate-400 block mb-1">Ширина пропила ({UNITS[unit].label})</label>
+                                <input type="number" value={fromBase(kerf, unit)} onChange={e => setKerf(toBase(e.target.value, unit))} className="w-full p-2 border rounded-xl" />
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border">
+                            <h3 className="text-xs font-bold text-slate-400 uppercase mb-3">Заготовки</h3>
+                            {stock.map(s => (
+                                <div key={s.id} className="grid grid-cols-4 gap-2 mb-2">
+                                    <input type="number" value={fromBase(s.length, unit)} onChange={e => updateItemValue(setStock, s.id, 'length', e.target.value)} className="border rounded p-1 text-center" />
+                                    <input type="number" value={fromBase(s.width, unit)} onChange={e => updateItemValue(setStock, s.id, 'width', e.target.value)} className="border rounded p-1 text-center" />
+                                    <input type="number" value={fromBase(s.thickness, unit)} onChange={e => updateItemValue(setStock, s.id, 'thickness', e.target.value)} className="border rounded p-1 text-center" />
+                                    <input type="number" value={s.count} onChange={e => setStock(st => st.map(x => x.id === s.id ? {...x, count: +e.target.value}:x))} className="border rounded p-1 text-center bg-slate-50" />
+                                </div>
+                            ))}
+                        </div>
+
+                        <button onClick={calculateLayout} className="w-full py-4 bg-amber-600 text-white rounded-2xl font-black uppercase shadow-lg shadow-amber-200 hover:bg-amber-700 transition-all">Рассчитать раскрой</button>
+                    </div>
+
+                    <div className="lg:col-span-8 space-y-6">
+                        {!results ? <div className="h-96 border-2 border-dashed rounded-3xl flex items-center justify-center text-slate-300 font-bold uppercase tracking-widest">Ожидание расчета...</div> : 
+                        <div>
+                            <div className="flex gap-2 mb-6">
+                                <button onClick={()=>setActiveTab('layers')} className={`px-6 py-2 rounded-xl font-bold transition ${activeTab==='layers'?'bg-amber-600 text-white shadow-md':'bg-white text-slate-400 border'}`}>2D Слои</button>
+                                <button onClick={()=>setActiveTab('3d')} className={`px-6 py-2 rounded-xl font-bold transition ${activeTab==='3d'?'bg-amber-600 text-white shadow-md':'bg-white text-slate-400 border'}`}>3D Модель</button>
+                            </div>
+                            {results.layouts.map(b => (
+                                <div key={b.boardId} className="bg-white rounded-3xl border p-6 mb-6">
+                                    <h3 className="font-bold mb-4 text-slate-700">Лист: {fromBase(b.length, unit)}x{fromBase(b.width, unit)}x{fromBase(b.thickness, unit)}</h3>
+                                    {activeTab === 'layers' ? (
+                                        <div className="relative border-2 border-slate-100 bg-slate-50" style={{height:'400px', width:'100%'}}>
+                                            {b.allPlacedParts.map(p => (
+                                                <div key={p.instId} className="absolute border border-amber-800/30 text-white flex items-center justify-center text-[10px] font-bold" 
+                                                style={{left:`${p.x/b.length*100}%`, top:`${p.y/b.width*100}%`, width:`${p.length/b.length*100}%`, height:`${p.width/b.width*100}%`, backgroundColor:'#f59e0b'}}>
+                                                    {p.length}x{p.width}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : <ThreeDView board={b} />}
+                                </div>
+                            ))}
+                        </div>}
+                    </div>
                 </div>
-            </div>
-            <button class="btn-add" onclick="addPartRow()">+ Добавить размер</button>
-        </div>
-        <div class="card">
-            <h3>Параметры</h3>
-            <label style="font-size: 11px; margin-bottom: 5px; display: block;">Пропил (мм):</label>
-            <input type="number" id="kerf" value="3">
-        </div>
-        <button class="btn-calc" onclick="calculate()">РАССЧИТАТЬ РАСКРОЙ</button>
-    </div>
+            );
+        };
 
-    <div class="content">
-        <div class="tabs">
-            <div class="tab active" id="tab2d" onclick="switchTab('2d')">2D Чертеж</div>
-            <div class="tab" id="tab3d" onclick="switchTab('3d')">3D Модель</div>
-        </div>
-        <div id="view2d"></div>
-        <div id="three-container"></div>
-    </div>
-</div>
-
-<script>
-    let currentResults = null;
-
-    function addPartRow() {
-        const div = document.createElement('div');
-        div.style.display = 'flex'; div.style.gap = '5px';
-        div.innerHTML = '<input type="number" placeholder="L"> <input type="number" placeholder="W"> <input type="number" placeholder="Шт">';
-        document.getElementById('parts-input').appendChild(div);
-    }
-
-    function switchTab(tab) {
-        document.getElementById('tab2d').className = 'tab' + (tab === '2d' ? ' active' : '');
-        document.getElementById('tab3d').className = 'tab' + (tab === '3d' ? ' active' : '');
-        document.getElementById('view2d').style.display = tab === '2d' ? 'block' : 'none';
-        document.getElementById('three-container').style.display = tab === '3d' ? 'block' : 'none';
-        if(tab === '3d') init3D();
-    }
-
-    function calculate() {
-        const sL = +document.getElementById('sL').value, sW = +document.getElementById('sW').value, sT = +document.getElementById('sT').value;
-        const kerf = +document.getElementById('kerf').value;
-        const parts = Array.from(document.querySelectorAll('#parts-input div')).map(g => ({
-            l: +g.children[0].value, w: +g.children[1].value, c: +g.children[2].value
-        })).filter(p => p.l > 0);
-
-        let pool = [];
-        parts.forEach(p => { for(let i=0; i<p.c; i++) pool.push({l: p.l, w: p.w}); });
-        pool.sort((a,b) => (b.l*b.w) - (a.l*a.w));
-
-        let placed = [], curX = 0, curY = 0, rowH = 0;
-        pool = pool.filter(p => {
-            if (curX + p.l <= sL && curY + p.w <= sW) {
-                placed.push({...p, x: curX, y: curY});
-                curX += p.l + kerf; rowH = Math.max(rowH, p.w);
-                return false;
-            } else if (curY + rowH + kerf + p.w <= sW && p.l <= sL) {
-                curX = 0; curY += rowH + kerf;
-                placed.push({...p, x: curX, y: curY});
-                curX = p.l + kerf; rowH = p.w;
-                return false;
-            }
-            return true;
-        });
-
-        currentResults = { sL, sW, sT, placed };
-        render2D();
-        if(document.getElementById('three-container').style.display === 'block') init3D();
-    }
-
-    function render2D() {
-        const v = document.getElementById('view2d'); v.innerHTML = '';
-        if(!currentResults) return;
-        const board = document.createElement('div'); board.className = 'board-view';
-        const scale = (v.offsetWidth - 40) / currentResults.sL;
-        board.style.width = (currentResults.sL * scale) + 'px';
-        board.style.height = (currentResults.sW * scale) + 'px';
-        currentResults.placed.forEach(p => {
-            const d = document.createElement('div'); d.className = 'part-rect';
-            d.style.left = (p.x * scale) + 'px'; d.style.top = (p.y * scale) + 'px';
-            d.style.width = (p.l * scale) + 'px'; d.style.height = (p.w * scale) + 'px';
-            d.innerText = p.l + 'x' + p.w;
-            board.appendChild(d);
-        });
-        v.appendChild(board);
-    }
-
-    function init3D() {
-        const container = document.getElementById('three-container');
-        container.innerHTML = '';
-        if(!currentResults) return;
-
-        const scene = new THREE.Scene(); scene.background = new THREE.Color(0xf8fafc);
-        const camera = new THREE.PerspectiveCamera(45, container.offsetWidth / 500, 1, 10000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(container.offsetWidth, 500);
-        container.appendChild(renderer.domElement);
-
-        const light = new THREE.DirectionalLight(0xffffff, 1); light.position.set(1, 1, 2); scene.add(light);
-        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-
-        const group = new THREE.Group();
-        const bG = new THREE.BoxGeometry(currentResults.sL, currentResults.sT, currentResults.sW);
-        const bM = new THREE.MeshPhongMaterial({ color: 0xcbd5e1, transparent: true, opacity: 0.3 });
-        group.add(new THREE.Mesh(bG, bM));
-
-        currentResults.placed.forEach(p => {
-            const pG = new THREE.BoxGeometry(p.l, currentResults.sT, p.w);
-            const pM = new THREE.Mesh(pG, new THREE.MeshPhongMaterial({ color: 0xd97706 }));
-            pM.position.set(p.x + p.l/2 - currentResults.sL/2, 0, p.y + p.w/2 - currentResults.sW/2);
-            group.add(pM);
-        });
-
-        scene.add(group);
-        camera.position.set(currentResults.sL, currentResults.sL/1.5, currentResults.sL);
-        camera.lookAt(0,0,0);
-
-        function anim() { requestAnimationFrame(anim); group.rotation.y += 0.005; renderer.render(scene, camera); }
-        anim();
-    }
-</script>
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+        setTimeout(() => lucide.createIcons(), 1000);
+    </script>
 </body>
 </html>
