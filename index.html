@@ -54,36 +54,58 @@
             outline: none;
         }
 
+        /* КОМПАКТНЫЙ РЕЖИМ ПЕЧАТИ */
         @media print {
-            @page { margin: 1cm; size: portrait; }
+            @page { margin: 0.8cm; size: portrait; }
             .no-print { display: none !important; }
-            body { background: white !important; font-size: 10pt !important; color: black !important; padding: 0 !important; }
+            body { background: white !important; font-size: 9pt !important; color: black !important; padding: 0 !important; }
             .max-w-6xl { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
             .shadow-sm, .shadow-md, .shadow-lg, .shadow-2xl { box-shadow: none !important; }
-            .border-slate-200, .border-slate-300 { border-color: #ddd !important; }
+            .border-slate-200, .border-slate-300 { border-color: #eee !important; }
             
             .board-card { 
                 break-inside: avoid; 
-                margin-bottom: 1cm !important; 
-                border: 1px solid #ddd !important;
-                border-radius: 8px !important;
+                margin-bottom: 0.4cm !important; 
+                border: 1px solid #eee !important;
+                border-radius: 6px !important;
+                padding: 8px !important;
             }
             .spec-table-container { 
-                margin-top: 1cm; 
-                break-inside: avoid;
-                border: 1px solid #ddd !important;
-                border-radius: 8px !important;
+                margin-top: 0.4cm; 
+                break-inside: auto;
+                border: 1px solid #eee !important;
+                border-radius: 6px !important;
             }
             .spec-table-container th, .spec-table-container td { 
-                padding: 4px 8px !important; 
-                font-size: 9pt !important;
+                padding: 2px 6px !important; 
+                font-size: 8pt !important;
+                border-bottom: 1px solid #f8f8f8 !important;
             }
-            h1 { font-size: 18pt !important; }
-            h2, h3 { font-size: 12pt !important; margin-bottom: 0.5cm !important; }
-            .layer-container { pt: 0.5cm !important; }
-            .layer-box { height: 250px !important; border: 1px solid #999 !important; }
-            .print-expand { display: block !important; visibility: visible !important; opacity: 1 !important; }
-            .totals-footer { background: #f9f9f9 !important; border-top: 1px solid #ddd !important; }
+            h1 { font-size: 14pt !important; margin-bottom: 4px !important; }
+            h2, h3 { font-size: 10pt !important; margin-bottom: 2px !important; }
+            
+            .layer-container { padding-top: 0.4cm !important; }
+            .layer-box { height: 220px !important; border: 1px solid #ddd !important; }
+            
+            .space-y-24 { gap: 1rem !important; } 
+            .space-y-16 { gap: 0.5rem !important; }
+
+            .totals-footer { 
+                display: flex !important; 
+                flex-direction: row !important; 
+                justify-content: space-between !important; 
+                padding: 6px 12px !important;
+                gap: 20px !important;
+                background: #fafafa !important;
+                border-top: 1px solid #eee !important;
+            }
+            .totals-footer > div { 
+                display: flex !important; 
+                align-items: center !important; 
+                gap: 8px !important; 
+                width: auto !important;
+            }
+            .totals-footer p { margin: 0 !important; }
         }
     </style>
 </head>
@@ -121,7 +143,7 @@
                 addStock: "Добавить заготовку",
                 addPart: "Добавить деталь",
                 errorEmpty: "Введите данные: добавьте заготовку и детали.",
-                errorZero: "Введите корректные данные: все размеры должны быть больше нуля.",
+                errorZero: "Некорректные данные: размеры должны быть больше нуля.",
                 lang: "Язык",
                 board: "Доска",
                 waste: "Остаток",
@@ -441,7 +463,7 @@
                     return;
                 }
 
-                const hasInvalid = [...activeStock, ...activeParts].some(i => i.length <= 0 || i.width <= 0 || i.thickness <= 0 || i.count <= 0);
+                const hasInvalid = [...activeStock, ...activeParts].some(i => i.length <= 0 || i.width <= 0 || (i.thickness !== undefined && i.thickness <= 0) || i.count <= 0);
                 if (hasInvalid) {
                     setErrorMsg(t('errorZero'));
                     return;
@@ -538,13 +560,11 @@
 
                 return (
                     <div className="absolute inset-0 pointer-events-none select-none" style={{ color }}>
-                        {/* Длина (Горизонтально снизу) */}
                         {showLength && (
                             <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[9px] font-bold leading-none">
                                 {length}
                             </div>
                         )}
-                        {/* Ширина (Вертикально слева) */}
                         {showWidth && (
                             <div 
                                 className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[9px] font-bold leading-none"
@@ -568,11 +588,9 @@
                         style={{ left: `${(part.x/board.length)*100}%`, top: `${(part.y/board.width)*100}%`, width: `${(part.actualL/board.length)*100}%`, height: `${(part.actualW/board.width)*100}%`, backgroundColor: part.color }}
                         onClick={() => setHighlightedId(part.instanceId)}
                     >
-                        {/* Номер детали (Справа) */}
                         <div className="absolute top-0.5 right-1">
                             <span className="bg-black/30 px-1 rounded text-[8px] font-bold leading-none">#{part.sequence}</span>
                         </div>
-                        {/* Маркировка количества (Слева, по просьбе пользователя) */}
                         {part.stackSize > 1 && (
                             <div className="absolute top-0.5 left-1">
                                 <span className="bg-amber-400 text-black px-1 rounded text-[8px] font-black border border-amber-600 shadow-sm leading-none">x{part.stackSize}</span>
@@ -612,7 +630,6 @@
                 );
             };
 
-            // Компонент мини-чертежа для таблицы
             const CutDiagram = ({ part, board }) => {
                 if (!board) return null;
                 return (
@@ -624,7 +641,6 @@
                                 width: `${(part.actualL / board.length) * 100}%`,
                                 height: `${(part.actualW / board.width) * 100}%`,
                             }}>
-                            {/* Индикация линий реза красным */}
                             <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-red-600 shadow-[0_0_3px_red]"></div>
                             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600 shadow-[0_0_3px_red]"></div>
                         </div>
@@ -634,19 +650,19 @@
 
             const SpecificationTable = () => (
                 <section className={`bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden spec-table-container`}>
-                    <div className="p-4 md:p-6">
-                        <h2 className="text-[11px] font-black uppercase text-slate-800 mb-4 flex items-center gap-2 tracking-widest">
+                    <div className="p-4 md:p-6 print:p-2">
+                        <h2 className="text-[11px] font-black uppercase text-slate-800 mb-4 flex items-center gap-2 tracking-widest print:mb-1 print:text-[10pt]">
                             {SVGIcons.ClipboardList(16, "text-amber-600")} {t('specification')}
                         </h2>
                         <div className="overflow-x-auto">
                             <table className="w-full text-[11px] text-left border-collapse">
                                 <thead>
                                     <tr className="bg-slate-50 text-slate-400 font-black uppercase border-b border-slate-100">
-                                        <th className="px-4 py-3 tracking-wider">#</th>
-                                        <th className="px-4 py-3 tracking-wider">{t('board')}</th>
-                                        <th className="px-4 py-3 tracking-wider">{t('diagram')}</th>
-                                        <th className="px-4 py-3 tracking-wider">{t('status')}</th>
-                                        <th className="px-4 py-3 tracking-wider">{t('dimensions')}</th>
+                                        <th className="px-4 py-3 tracking-wider print:px-2 print:py-1">#</th>
+                                        <th className="px-4 py-3 tracking-wider print:px-2 print:py-1">{t('board')}</th>
+                                        <th className="px-4 py-3 tracking-wider print:px-2 print:py-1">{t('diagram')}</th>
+                                        <th className="px-4 py-3 tracking-wider print:px-2 print:py-1">{t('status')}</th>
+                                        <th className="px-4 py-3 tracking-wider print:px-2 print:py-1">{t('dimensions')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -660,21 +676,21 @@
                                                 className={`border-b border-slate-50 transition-all cursor-pointer ${highlightedId === p.instanceId ? 'bg-amber-100' : 'hover:bg-slate-50'}`} 
                                                 onClick={() => placedPart && setHighlightedId(p.instanceId)}
                                             >
-                                                <td className="px-4 py-2 font-black text-slate-400">
+                                                <td className="px-4 py-2 font-black text-slate-400 print:px-2 print:py-1">
                                                     {placedPart ? `#${placedPart.sequence}` : `--`}
                                                 </td>
-                                                <td className="px-4 py-2 font-bold text-slate-600">
+                                                <td className="px-4 py-2 font-bold text-slate-600 print:px-2 print:py-1">
                                                     {parentBoard ? `${t('board')} ${parentBoard.displayIdx}` : t('notUsed')}
                                                 </td>
-                                                <td className="px-4 py-2">
+                                                <td className="px-4 py-2 print:px-2 print:py-1">
                                                     {placedPart ? <CutDiagram part={placedPart} board={parentBoard} /> : <div className="w-12 h-8 bg-slate-50 border border-dashed border-slate-200 rounded"></div>}
                                                 </td>
-                                                <td className="px-4 py-2">
+                                                <td className="px-4 py-2 print:px-2 print:py-1">
                                                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${placedPart ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
                                                         {placedPart ? t('placed') : t('unplaced')}
                                                     </span>
                                                 </td>
-                                                <td className="px-4 py-2 font-black text-slate-800 whitespace-nowrap">
+                                                <td className="px-4 py-2 font-black text-slate-800 whitespace-nowrap print:px-2 print:py-1">
                                                     {fromBase(p.length, unit)} × {fromBase(p.width, unit)} × {fromBase(p.thickness, unit)} {UNITS[unit].label}
                                                 </td>
                                             </tr>
@@ -685,20 +701,20 @@
                         </div>
                     </div>
                     
-                    <div className="bg-slate-50 border-t border-slate-200 p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 totals-footer">
-                        <div className="space-y-1">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('totalStockArea')}</p>
-                            <p className="text-sm font-black text-slate-800">{formatAreaMeters(totals?.stock || 0)}</p>
+                    <div className="bg-slate-50 border-t border-slate-200 p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 totals-footer print:grid-cols-1 print:flex print:flex-row print:justify-between print:gap-2 print:p-2">
+                        <div className="space-y-1 print:space-y-0 print:flex print:items-center print:gap-2">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('totalStockArea')}:</p>
+                            <p className="text-sm font-black text-slate-800 print:text-[9pt]">{formatAreaMeters(totals?.stock || 0)}</p>
                         </div>
-                        <div className="space-y-1">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('totalPartsArea')}</p>
-                            <p className="text-sm font-black text-amber-600">
+                        <div className="space-y-1 print:space-y-0 print:flex print:items-center print:gap-2">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('totalPartsArea')}:</p>
+                            <p className="text-sm font-black text-amber-600 print:text-[9pt]">
                                 {formatAreaMeters(totals?.parts || 0)} <span className="text-[10px] opacity-70">({totals?.partsPct.toFixed(1)}%)</span>
                             </p>
                         </div>
-                        <div className="space-y-1">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('totalWasteArea')}</p>
-                            <p className="text-sm font-black text-slate-500">
+                        <div className="space-y-1 print:space-y-0 print:flex print:items-center print:gap-2">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('totalWasteArea')}:</p>
+                            <p className="text-sm font-black text-slate-500 print:text-[9pt]">
                                 {formatAreaMeters(totals?.waste || 0)} <span className="text-[10px] opacity-70">({totals?.wastePct.toFixed(1)}%)</span>
                             </p>
                         </div>
@@ -706,21 +722,71 @@
                 </section>
             );
 
+            const ThreeDView = ({ board }) => {
+                const mountRef = useRef(null);
+                useEffect(() => {
+                    const THREE = window.THREE;
+                    if (!THREE || !mountRef.current) return;
+                    const container = mountRef.current;
+                    const scene = new THREE.Scene(); scene.background = new THREE.Color(0xf8fafc);
+                    const width = container.clientWidth, height = 400;
+                    const camera = new THREE.PerspectiveCamera(45, width/height, 1, 30000);
+                    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                    renderer.setSize(width, height); container.appendChild(renderer.domElement);
+                    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+                    const dL = new THREE.DirectionalLight(0xffffff, 0.4); dL.position.set(1000, 1000, 1000); scene.add(dL);
+                    const root = new THREE.Group();
+                    const bGeom = new THREE.BoxGeometry(board.length, board.thickness, board.width);
+                    const bMesh = new THREE.Mesh(bGeom, new THREE.MeshPhongMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.35 }));
+                    root.add(bMesh);
+                    const bEdges = new THREE.LineSegments(new THREE.EdgesGeometry(bGeom), new THREE.LineBasicMaterial({ color: 0x1e293b, opacity: 0.8 }));
+                    root.add(bEdges);
+                    board.allPlacedParts.forEach(p => {
+                        const pG = new THREE.BoxGeometry(p.actualL, p.thickness, p.actualW);
+                        const pM = new THREE.Mesh(pG, new THREE.MeshPhongMaterial({ color: p.color, shininess: 30 }));
+                        pM.position.set(p.x + p.actualL/2 - board.length/2, p.z + p.thickness/2 - board.thickness/2, p.y + p.actualW/2 - board.width/2);
+                        root.add(pM);
+                        const pE = new THREE.LineSegments(new THREE.EdgesGeometry(pG), new THREE.LineBasicMaterial({ color: 0x000000, opacity: 0.2 }));
+                        pE.position.copy(pM.position); root.add(pE);
+                    });
+                    scene.add(root);
+                    let theta = Math.PI/4, phi = Math.PI/4, radius = Math.max(board.length, board.width) * 1.5;
+                    const update = () => {
+                        phi = Math.max(0.1, Math.min(Math.PI/2.1, phi));
+                        camera.position.set(radius * Math.sin(phi) * Math.cos(theta), radius * Math.cos(phi), radius * Math.sin(phi) * Math.sin(theta));
+                        camera.lookAt(0,0,0);
+                    };
+                    update();
+                    let drag = false, prev = { x: 0, y: 0 };
+                    const down = (e) => { drag = true; prev = { x: e.clientX, y: e.clientY }; };
+                    const move = (e) => { if (!drag) return; theta -= (e.clientX - prev.x) * 0.008; phi -= (e.clientY - prev.y) * 0.008; prev = { x: e.clientX, y: e.clientY }; update(); };
+                    const up = () => drag = false;
+                    const wheel = (e) => { e.preventDefault(); radius = Math.max(radius + e.deltaY * 0.4, 100); update(); };
+                    container.addEventListener('mousedown', down); window.addEventListener('mousemove', move); window.addEventListener('mouseup', up); container.addEventListener('wheel', wheel, { passive: false });
+                    let f; const anim = () => { f = requestAnimationFrame(anim); renderer.render(scene, camera); }; anim();
+                    return () => { 
+                        cancelAnimationFrame(f); container.removeEventListener('mousedown', down); window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); container.removeEventListener('wheel', wheel);
+                        renderer.dispose(); if (container) container.innerHTML = ''; 
+                    };
+                }, [board]);
+                return <div ref={mountRef} className="w-full h-[400px] bg-white rounded-2xl border border-slate-200 cursor-grab active:cursor-grabbing no-print"></div>;
+            };
+
             return (
-                <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6 pb-20">
-                    <div className="hidden print:block mb-8 border-b-2 border-slate-100 pb-4">
+                <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6 pb-20 print:p-0 print:space-y-2">
+                    <div className="hidden print:block mb-4 border-b-2 border-slate-100 pb-2">
                         <div className="flex justify-between items-end">
                             <div>
-                                <h1 className="text-2xl font-black uppercase tracking-tighter">{t('title')}</h1>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('specification')}</p>
+                                <h1 className="text-xl font-black uppercase tracking-tighter">{t('title')}</h1>
+                                <p className="text-[8pt] font-bold text-slate-400 uppercase tracking-widest">{t('specification')}</p>
                             </div>
                             <div className="text-right">
-                                <p className="text-[9px] font-black text-slate-300 uppercase">{t('date')}: {new Date().toLocaleDateString()}</p>
+                                <p className="text-[8pt] font-black text-slate-300 uppercase">{t('date')}: {new Date().toLocaleDateString()}</p>
                             </div>
                         </div>
                     </div>
 
-                    <div className="grid lg:grid-cols-12 gap-6">
+                    <div className="grid lg:grid-cols-12 gap-6 print:gap-0">
                         <div className="lg:col-span-4 space-y-4 no-print">
                             <header className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-3">
                                 <div className="bg-amber-600 p-2 rounded-xl text-white shadow-inner">{SVGIcons.Calculator(24)}</div>
@@ -799,19 +865,26 @@
                                 </button>
                             </section>
 
-                            <button onClick={calculateLayout} className="w-full py-4 bg-amber-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg hover:bg-amber-700 transition-all active:scale-95 flex items-center justify-center gap-2">
-                                {SVGIcons.Calculator(18)} {t('calculate')}
-                            </button>
+                            <div className="space-y-3">
+                                {errorMsg && (
+                                    <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-[11px] font-bold animate-pulse">
+                                        {errorMsg}
+                                    </div>
+                                )}
+                                <button onClick={calculateLayout} className="w-full py-4 bg-amber-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg hover:bg-amber-700 transition-all active:scale-95 flex items-center justify-center gap-2">
+                                    {SVGIcons.Calculator(18)} {t('calculate')}
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="lg:col-span-8 space-y-6">
+                        <div className="lg:col-span-8 space-y-6 print:space-y-2">
                             {!results ? (
                                 <div className="h-[400px] flex flex-col items-center justify-center bg-white rounded-3xl border-2 border-dashed border-slate-200 text-slate-300 font-bold uppercase tracking-widest shadow-inner no-print">
                                     <div className="mb-4 opacity-5">{SVGIcons.Stock(64)}</div>
                                     {t('waiting')}
                                 </div>
                             ) : (
-                                <div className="space-y-6">
+                                <div className="space-y-6 print:space-y-2">
                                     <div className="flex flex-wrap items-center justify-between gap-3 no-print">
                                         <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
                                             <button onClick={()=>setActiveTab('layers')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${activeTab==='layers'?'bg-amber-600 text-white shadow-md':'text-slate-400 hover:bg-slate-50'}`}>{t('layers2d')}</button>
@@ -825,16 +898,16 @@
                                     {results.layouts.map(b => {
                                         if (b.allPlacedParts.length === 0) return null;
                                         return (
-                                            <div key={b.boardId} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all board-card">
+                                            <div key={b.boardId} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all board-card print:rounded-md">
                                                 <div 
                                                     onClick={() => !window.matchMedia('print').matches && setExpandedBoards(p=>({...p, [b.boardId]:!p[b.boardId]}))} 
-                                                    className={`p-4 flex justify-between items-center transition-colors select-none ${!window.matchMedia('print').matches ? 'cursor-pointer hover:bg-slate-50' : ''}`}
+                                                    className={`p-4 flex justify-between items-center transition-colors select-none print:p-1 ${!window.matchMedia('print').matches ? 'cursor-pointer hover:bg-slate-50' : ''}`}
                                                 >
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-7 h-7 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-black text-xs shadow-inner">{b.displayIdx}</div>
+                                                    <div className="flex items-center gap-3 print:gap-1">
+                                                        <div className="w-7 h-7 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-black text-xs shadow-inner print:w-5 print:h-5 print:text-[8pt]">{b.displayIdx}</div>
                                                         <div>
-                                                            <h3 className="font-black text-sm text-slate-800 tracking-tight">{fromBase(b.length, unit)}×{fromBase(b.width, unit)}×{fromBase(b.thickness, unit)} {UNITS[unit].label}</h3>
-                                                            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{t('efficiency')}: {b.efficiency.toFixed(1)}%</p>
+                                                            <h3 className="font-black text-sm text-slate-800 tracking-tight print:text-[10pt]">{fromBase(b.length, unit)}×{fromBase(b.width, unit)}×{fromBase(b.thickness, unit)} {UNITS[unit].label}</h3>
+                                                            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 print:text-[7pt]">{t('efficiency')}: {b.efficiency.toFixed(1)}%</p>
                                                         </div>
                                                     </div>
                                                     <div className="text-slate-300 no-print">
@@ -843,17 +916,18 @@
                                                 </div>
 
                                                 {(expandedBoards[b.boardId] || window.matchMedia('print').matches) && (
-                                                    <div className="p-4 md:p-6 bg-slate-50/50 space-y-16 border-t border-slate-100 print:bg-white print-expand">
+                                                    <div className="p-4 md:p-6 bg-slate-50/50 space-y-16 border-t border-slate-100 print:bg-white print-expand print:p-0 print:space-y-4 print:border-t-0">
                                                         {activeTab === 'layers' ? (
-                                                            <div className="space-y-24">
+                                                            <div className="space-y-24 print:space-y-4">
                                                                 {b.layers.map((l, i) => (
-                                                                    <div key={i} className="relative pt-16 px-2 md:px-8 layer-container">
-                                                                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-white border border-slate-200 px-4 py-1.5 rounded-full text-[9px] font-black uppercase shadow-sm z-30 whitespace-nowrap text-slate-500 tracking-wider">
+                                                                    <div key={i} className="relative pt-16 px-2 md:px-8 layer-container print:pt-4 print:px-2">
+                                                                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-white border border-slate-200 px-4 py-1.5 rounded-full text-[9px] font-black uppercase shadow-sm z-30 whitespace-nowrap text-slate-500 tracking-wider print:text-[7pt] print:px-2 print:py-0 print:top-0">
                                                                             {t('layer')} {i+1} (Z = {fromBase(l.z, unit)})
                                                                         </div>
-                                                                        <div className="relative border border-slate-300 bg-white shadow-xl mx-auto layer-box" style={{height:'320px', width:'100%'}}>
-                                                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-400 bg-white/95 px-3 py-1 rounded-full border border-slate-100 shadow-sm z-20">{fromBase(b.length, unit)}</div>
-                                                                            <div className="absolute -left-12 top-1/2 -translate-y-1/2 -rotate-90 text-[10px] font-bold text-slate-400 bg-white/95 px-3 py-1 rounded-full border border-slate-100 shadow-sm z-20">{fromBase(b.width, unit)}</div>
+                                                                        <div className="relative border border-slate-300 bg-white shadow-xl mx-auto layer-box print:shadow-none print:h-[200px]" style={{height:'320px', width:'100%'}}>
+                                                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-400 bg-white/95 px-3 py-1 rounded-full border border-slate-100 shadow-sm z-20 no-print">{fromBase(b.length, unit)}</div>
+                                                                            <div className="absolute -left-12 top-1/2 -translate-y-1/2 -rotate-90 text-[10px] font-bold text-slate-400 bg-white/95 px-3 py-1 rounded-full border border-slate-100 shadow-sm z-20 no-print">{fromBase(b.width, unit)}</div>
+                                                                            
                                                                             {l.wasteSpaces.map((ws, wIdx) => <WasteBox key={wIdx} space={ws} board={b} />)}
                                                                             {l.parts.map(p => <PartBox key={p.instanceId} part={p} board={b}/>)}
                                                                         </div>
