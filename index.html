@@ -3,193 +3,877 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WoodCut Pro - Full Edition</title>
-    <!-- Подключаем библиотеки с параметром crossorigin для обхода блокировок -->
-    <script src="https://unpkg.com" crossorigin></script>
-    <script src="https://unpkg.com" crossorigin></script>
-    <script src="https://unpkg.com"></script>
-    <script src="https://tailwindcss.com"></script>
-    <script src="https://unpkg.com"></script>
-    <script src="https://cloudflare.com"></script>
+    <title>WoodCut Pro - Оптимизатор раскроя</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
     <style>
-        body { margin: 0; padding: 0; background-color: #f1f5f9; font-family: sans-serif; }
-        #root { min-height: 100vh; }
-        canvas { display: block; border-radius: 1rem; cursor: move; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        canvas { display: block; border-radius: 1rem; }
+        
+        .input-no-spinner::-webkit-inner-spin-button, 
+        .input-no-spinner::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        
+        .btn-trash:hover svg { stroke: #ef4444; }
+        @keyframes spin-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-saw { animation: spin-slow 8s linear infinite; }
+        
+        .waste-hatch {
+            background: repeating-linear-gradient(
+                45deg,
+                rgba(203, 213, 225, 0.1),
+                rgba(203, 213, 225, 0.1) 10px,
+                rgba(203, 213, 225, 0.3) 10px,
+                rgba(203, 213, 225, 0.3) 20px
+            );
+            border: 1px dashed rgba(148, 163, 184, 0.5);
+        }
+
+        .part-highlighted {
+            z-index: 50 !important;
+            transform: scale(1.04);
+            box-shadow: 0 0 0 3px #f59e0b, 0 0 20px rgba(245, 158, 11, 0.5);
+            outline: none;
+            filter: brightness(1.1);
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white !important; padding: 0 !important; margin: 0 !important; }
+            .max-w-6xl { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+            .shadow-sm, .shadow-md, .shadow-lg, .shadow-2xl { box-shadow: none !important; }
+            .border-slate-200, .border-slate-300 { border-color: #eee !important; }
+            .board-card { break-inside: avoid; margin-bottom: 2cm !important; border: 1px solid #eee !important; }
+            .page-break { page-break-after: always; }
+            .spec-table-container { margin-top: 1cm; break-inside: avoid; }
+        }
     </style>
 </head>
-<body>
+<body class="bg-slate-100 text-slate-900">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useMemo, useEffect, useRef } = React;
-        const { Trash2, Plus, Calculator, Square, Layers, Scissors, Table: TableIcon, ChevronDown, ChevronUp, Maximize2, Hash, Settings2, Box, BoxSelect, Copy } = lucide;
+        const { useState, useEffect, useRef, useMemo } = React;
 
-        // --- ПОЛНЫЙ КОД ПРИЛОЖЕНИЯ ---
+        const TRANSLATIONS = {
+            ru: {
+                title: "WoodCut Pro",
+                settings: "Параметры",
+                units: "Ед. измерения",
+                kerf: "Пропил",
+                resawPriority: "Приоритет толщины",
+                stock: "Заготовки",
+                parts: "Раскройка",
+                calculate: "Рассчитать",
+                waiting: "Ожидание данных для расчета",
+                layers2d: "2D Слои",
+                view3d: "3D Вид",
+                preview: "Предпросмотр",
+                efficiency: "Эффективность",
+                layer: "Слой",
+                specification: "Спецификация распила",
+                type: "Тип",
+                dimensions_hint: "Длина × Ширина × Толщина",
+                stack: "Стопка",
+                single: "Одиночная",
+                addStock: "Добавить заготовку",
+                addPart: "Добавить деталь",
+                errorEmpty: "Введите данные: добавьте заготовку и детали.",
+                errorZero: "Введите корректные данные: все размеры должны быть больше нуля.",
+                lang: "Язык",
+                board: "Доска",
+                waste: "Остаток",
+                notUsed: "Не используется",
+                len_abbr: "Д",
+                wid_abbr: "Ш",
+                thk_abbr: "Т",
+                totalStockArea: "Заготовки",
+                totalPartsArea: "Детали",
+                totalWasteArea: "Остаток",
+                print: "Печать",
+                printDesc: "Отправить результат на печать",
+                date: "Дата"
+            },
+            en: {
+                title: "WoodCut Pro",
+                settings: "Parameters",
+                units: "Units",
+                kerf: "Kerf",
+                resawPriority: "Resaw Priority",
+                stock: "Stock Material",
+                parts: "Cutting List",
+                calculate: "Calculate",
+                waiting: "Waiting for data to calculate",
+                layers2d: "2D Layers",
+                view3d: "3D View",
+                preview: "Preview",
+                efficiency: "Efficiency",
+                layer: "Layer",
+                specification: "Cutting Specification",
+                type: "Type",
+                dimensions_hint: "Length × Width × Thickness",
+                stack: "Stack",
+                single: "Single",
+                addStock: "Add Stock",
+                addPart: "Add Part",
+                errorEmpty: "Enter data: add at least one stock and part.",
+                errorZero: "Enter valid data: all dimensions must be greater than zero.",
+                lang: "Language",
+                board: "Board",
+                waste: "Waste",
+                notUsed: "Not used",
+                len_abbr: "L",
+                wid_abbr: "W",
+                thk_abbr: "T",
+                totalStockArea: "Stock",
+                totalPartsArea: "Parts",
+                totalWasteArea: "Waste",
+                print: "Print",
+                printDesc: "Send results to printer",
+                date: "Date"
+            },
+            de: {
+                title: "WoodCut Pro",
+                settings: "Parameter",
+                units: "Einheiten",
+                kerf: "Schnittbreite",
+                resawPriority: "Dickenpriorität",
+                stock: "Rohmaterial",
+                parts: "Zuschnittliste",
+                calculate: "Berechnen",
+                waiting: "Warten auf Daten zur Berechnung",
+                layers2d: "2D Schichten",
+                view3d: "3D Ansicht",
+                preview: "Vorschau",
+                efficiency: "Effizienz",
+                layer: "Schicht",
+                specification: "Schnittspezifikation",
+                type: "Typ",
+                dimensions_hint: "Länge × Breite × Dicke",
+                stack: "Stapel",
+                single: "Einzeln",
+                addStock: "Material hinzufügen",
+                addPart: "Teil hinzufügen",
+                errorEmpty: "Daten eingeben: Material und Teile hinzufügen.",
+                errorZero: "Gültige Daten eingeben: Maße müssen größer als Null sein.",
+                lang: "Sprache",
+                board: "Platte",
+                waste: "Rest",
+                notUsed: "Nicht verwendet",
+                len_abbr: "L",
+                wid_abbr: "B",
+                thk_abbr: "D",
+                totalStockArea: "Material",
+                totalPartsArea: "Teile",
+                totalWasteArea: "Rest",
+                print: "Drucken",
+                printDesc: "Ergebnis drucken",
+                date: "Datum"
+            },
+            es: {
+                title: "WoodCut Pro",
+                settings: "Parámetros",
+                units: "Unidades",
+                kerf: "Corte (Kerf)",
+                resawPriority: "Prioridad de grosor",
+                stock: "Material base",
+                parts: "Lista de corte",
+                calculate: "Calcular",
+                waiting: "Esperando datos para calcular",
+                layers2d: "2D Capas",
+                view3d: "Vista 3D",
+                preview: "Vista previa",
+                efficiency: "Eficiencia",
+                layer: "Capa",
+                specification: "Especificación de corte",
+                type: "Tipo",
+                dimensions_hint: "Longitud × Ancho × Grosor",
+                stack: "Pila",
+                single: "Individual",
+                addStock: "Añadir material",
+                addPart: "Añadir pieza",
+                errorEmpty: "Ingrese datos: añada material y piezas.",
+                errorZero: "Ingrese datos válidos: las dimensiones deben ser mayores a cero.",
+                lang: "Idioma",
+                board: "Tablero",
+                waste: "Sobrante",
+                notUsed: "No utilizado",
+                len_abbr: "L",
+                wid_abbr: "A",
+                thk_abbr: "G",
+                totalStockArea: "Stock",
+                totalPartsArea: "Piezas",
+                totalWasteArea: "Sobrante",
+                print: "Imprimir",
+                printDesc: "Imprimir resultado",
+                date: "Fecha"
+            }
+        };
+
+        const SVGIcons = {
+            Trash: (size, cls) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cls}>
+                    <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2M10 11v6M14 11v6" />
+                </svg>
+            ),
+            Plus: (size, cls) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={cls}>
+                    <path d="M12 5v14M5 12h14" />
+                </svg>
+            ),
+            Calculator: (size, cls) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cls}>
+                    <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
+                    <line x1="8" y1="6" x2="16" y2="6" /><line x1="8" y1="10" x2="16" y2="10" />
+                    <line x1="8" y1="14" x2="8" y2="18" /><line x1="12" y1="14" x2="12" y2="18" />
+                    <line x1="16" y1="14" x2="16" y2="18" />
+                </svg>
+            ),
+            Settings: (size, cls) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={cls}>
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+            ),
+            Saw: (size, cls) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cls}>
+                   <circle cx="12" cy="12" r="9" strokeDasharray="4 2" />
+                   <circle cx="12" cy="12" r="2" fill="currentColor" />
+                   <path d="M12 3l1 2h-2zM12 21l-1-2h2zM3 12l2-1v2zM21 12l-2 1v-2z" />
+                   <path d="M5.6 5.6l1.4 1.4-.7.7zM18.4 18.4l-1.4-1.4.7-.7zM5.6 18.4l1.4-1.4.7.7zM18.4 5.6l-1.4 1.4-.7-.7z" />
+                </svg>
+            ),
+            Stock: (size, cls) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cls}>
+                    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+                    <path d="m3.3 7 8.7 5 8.7-5" />
+                    <path d="M12 22V12" />
+                </svg>
+            ),
+            Part: (size, cls) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cls}>
+                    <path d="M7 10v4a2 2 0 0 1-2 2 2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2 2 2 0 0 1-2 2H7Z" />
+                    <path d="M21 14v4a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2 2 2 0 0 1 2-2h4a2 2 0 0 1 2 2Z" />
+                    <path d="M14 3h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2 2 2 0 0 1-2-2V5a2 2 0 0 1-2-2Z" />
+                </svg>
+            ),
+            Globe: (size, cls) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cls}>
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="2" y1="12" x2="22" y2="12" />
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                </svg>
+            ),
+            Priority: (size, cls) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={cls}>
+                    <circle cx="12" cy="12" r="8" />
+                    <line x1="4.93" y1="19.07" x2="19.07" y2="4.93" />
+                </svg>
+            ),
+            ChevronDown: (size, cls) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={cls}>
+                    <polyline points="6 9 12 15 18 9" />
+                </svg>
+            ),
+            ChevronUp: (size, cls) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={cls}>
+                    <polyline points="18 15 12 9 6 15" />
+                </svg>
+            ),
+            Print: (size, cls) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cls}>
+                    <polyline points="6 9 6 2 18 2 18 9" />
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                    <rect x="6" y="14" width="12" height="8" />
+                </svg>
+            )
+        };
+
         const App = () => {
+            const getInitialLang = () => {
+                const browserLang = navigator.language.split('-')[0];
+                return TRANSLATIONS[browserLang] ? browserLang : 'en';
+            };
+
+            const [lang, setLang] = useState(getInitialLang());
+            const t = (key) => TRANSLATIONS[lang][key] || key;
+
             const UNITS = {
-                mm: { label: 'мм', factor: 1, precision: 0 },
-                cm: { label: 'см', factor: 10, precision: 1 },
-                m: { label: 'м', factor: 1000, precision: 3 },
-                in: { label: 'дюйм', factor: 25.4, precision: 2 }
+                mm: { label: 'mm', factor: 1, precision: 0 },
+                cm: { label: 'cm', factor: 10, precision: 1 },
+                m: { label: 'm', factor: 1000, precision: 3 },
+                in: { label: 'in', factor: 25.4, precision: 2 }
             };
 
             const [unit, setUnit] = useState('mm');
             const [resawPriority, setResawPriority] = useState(true);
-            const [stock, setStock] = useState([{ id: 1, length: 2000, width: 300, thickness: 40, count: 2, enabled: true }]);
+            const [stock, setStock] = useState([{ id: '1', length: 2000, width: 300, thickness: 40, count: 2, enabled: true }]);
             const [parts, setParts] = useState([
-                { id: 1, length: 820, width: 92, thickness: 18, count: 2, enabled: true },
-                { id: 2, length: 300, width: 100, thickness: 20, count: 4, enabled: true }
+                { id: 'p1', length: 820, width: 92, thickness: 18, count: 2, enabled: true },
+                { id: 'p2', length: 300, width: 100, thickness: 20, count: 4, enabled: true }
             ]);
             const [kerf, setKerf] = useState(3);
             const [results, setResults] = useState(null);
+            const [errorMsg, setErrorMsg] = useState(null);
             const [activeTab, setActiveTab] = useState('layers');
             const [expandedBoards, setExpandedBoards] = useState({});
+            const [highlightedId, setHighlightedId] = useState(null);
+
+            const partColors = ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#ef4444', '#06b6d4', '#84cc16'];
 
             const toBase = (val, currentUnit) => (parseFloat(val) || 0) * UNITS[currentUnit].factor;
-            const fromBase = (val, currentUnit) => (val / UNITS[currentUnit].factor).toFixed(UNITS[currentUnit].precision);
+            const fromBase = (val, currentUnit, isInput = false) => {
+                if (isInput && (val === 0 || val === undefined)) return "";
+                const raw = val / UNITS[currentUnit].factor;
+                return parseFloat(raw.toFixed(UNITS[currentUnit].precision));
+            };
 
-            const updateItemValue = (setter, id, field, value) => {
-                const baseValue = toBase(value, unit);
-                setter(prev => prev.map(item => item.id === id ? { ...item, [field]: baseValue } : item));
+            const formatAreaMeters = (areaBase) => {
+                const areaMeters = areaBase / 1000000;
+                return areaMeters.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 }) + ' m²';
+            };
+
+            const totals = useMemo(() => {
+                if (!results) return null;
+                const totalStockArea = results.layouts.reduce((acc, b) => acc + (b.length * b.width), 0);
+                const totalPartsArea = results.layouts.flatMap(b => b.allPlacedParts).reduce((acc, p) => acc + (p.length * p.width), 0);
+                const stockVal = totalStockArea || 1;
+                return {
+                    stock: totalStockArea,
+                    parts: totalPartsArea,
+                    partsPct: (totalPartsArea / stockVal) * 100,
+                    waste: totalStockArea - totalPartsArea,
+                    wastePct: ((totalStockArea - totalPartsArea) / stockVal) * 100
+                };
+            }, [results]);
+
+            const addItem = (setter) => {
+                setter(prev => [...prev, { id: Math.random().toString(36).substr(2, 9), length: 0, width: 0, thickness: 0, count: 1, enabled: true }]);
+                setErrorMsg(null);
+            };
+
+            const removeItem = (setter, id) => setter(prev => prev.filter(item => item.id !== id));
+
+            const updateValue = (setter, id, field, value) => {
+                const numVal = (field === 'count') ? (parseInt(value) || 0) : toBase(value, unit);
+                setter(prev => prev.map(item => item.id === id ? { ...item, [field]: numVal } : item));
+                setErrorMsg(null);
+            };
+
+            const toggleEnabled = (setter, id) => {
+                setter(prev => prev.map(item => item.id === id ? { ...item, enabled: !item.enabled } : item));
             };
 
             const calculateLayout = () => {
-                // Алгоритм раскроя
-                const allParts = [];
-                parts.filter(p => p.enabled).forEach(p => {
-                    for(let i=0; i<p.count; i++) allParts.push({...p, instId: `${p.id}-${i}`, placed: false});
-                });
-                
-                allParts.sort((a,b) => (b.length * b.width) - (a.length * a.width));
-                
-                const layouts = [];
-                stock.filter(s => s.enabled).forEach((s, sIdx) => {
-                    for(let i=0; i<s.count; i++) {
-                        const boardRes = { ...s, boardId: `b-${s.id}-${i}`, displayIdx: i+1, allPlacedParts: [], layers: [] };
-                        let spaces = [{ x: 0, y: 0, w: s.length, h: s.width }];
-                        
-                        allParts.forEach(p => {
-                            if (p.placed) return;
-                            for (let j=0; j<spaces.length; j++) {
-                                let sp = spaces[j];
-                                if (p.length <= sp.w && p.width <= sp.h) {
-                                    let stack = resawPriority ? Math.floor((s.thickness + kerf) / (p.thickness + kerf)) : 1;
-                                    let toPlace = allParts.filter(x => !x.placed && x.length === p.length && x.width === p.width).slice(0, stack);
-                                    
-                                    let curZ = 0;
-                                    toPlace.forEach(tp => {
-                                        boardRes.allPlacedParts.push({ ...tp, x: sp.x, y: sp.y, z: curZ, color: '#f59e0b' });
-                                        tp.placed = true;
-                                        curZ += tp.thickness + kerf;
-                                    });
+                const activeStock = stock.filter(s => s.enabled);
+                const activeParts = parts.filter(p => p.enabled);
 
-                                    let next = [];
-                                    if (sp.w - p.length - kerf > 0) next.push({ x: sp.x + p.length + kerf, y: sp.y, w: sp.w - p.length - kerf, h: sp.h });
-                                    if (sp.h - p.width - kerf > 0) next.push({ x: sp.x, y: sp.y + p.width + kerf, w: p.length, h: sp.h - p.width - kerf });
-                                    spaces.splice(j, 1, ...next);
-                                    return;
+                if (activeStock.length === 0 || activeParts.length === 0) {
+                    setErrorMsg(t('errorEmpty'));
+                    return;
+                }
+
+                const hasInvalid = [...activeStock, ...activeParts].some(i => i.length <= 0 || i.width <= 0 || i.thickness <= 0 || i.count <= 0);
+                if (hasInvalid) {
+                    setErrorMsg(t('errorZero'));
+                    return;
+                }
+
+                setErrorMsg(null);
+                const partsToPlace = [];
+                activeParts.forEach(p => {
+                    for (let i = 0; i < p.count; i++) partsToPlace.push({ ...p, instanceId: `${p.id}-${i}`, placed: false });
+                });
+
+                const sizeGroups = {};
+                let colorIdx = 0;
+                partsToPlace.forEach(p => {
+                    const key = `${p.length}x${p.width}x${p.thickness}`;
+                    if (!sizeGroups[key]) { sizeGroups[key] = partColors[colorIdx % partColors.length]; colorIdx++; }
+                });
+
+                partsToPlace.sort((a, b) => (b.length * b.width) - (a.length * a.width));
+                const finalLayouts = [];
+                let absoluteSequence = 1;
+
+                activeStock.forEach(s => {
+                    for (let i = 0; i < s.count; i++) {
+                        let currentBoard = { ...s, boardId: `b-${s.id}-${i}`, displayIdx: i + 1, allPlacedParts: [], layers: [] };
+                        const boardSpaces = [{ x: 0, y: 0, w: s.length, h: s.width }];
+
+                        partsToPlace.forEach((part) => {
+                            if (part.placed) return;
+                            for (let spaceIdx = 0; spaceIdx < boardSpaces.length; spaceIdx++) {
+                                const space = boardSpaces[spaceIdx];
+                                const orientations = [{ l: part.length, w: part.width }, { l: part.width, w: part.length }];
+                                for (let orient of orientations) {
+                                    if (orient.l <= space.w && orient.w <= space.h) {
+                                        let stackLimit = resawPriority ? Math.floor((s.thickness + kerf) / (part.thickness + kerf)) : 1;
+                                        if (stackLimit < 1) stackLimit = 1;
+                                        const identical = partsToPlace.filter(p => !p.placed && p.length === part.length && p.width === part.width && p.thickness === part.thickness).slice(0, stackLimit);
+                                        
+                                        if (identical.length > 0) {
+                                            let curZ = 0;
+                                            const stackSize = identical.length;
+                                            identical.forEach(pToPlace => {
+                                                const pObj = { ...pToPlace, x: space.x, y: space.y, z: curZ, actualL: orient.l, actualW: orient.w, color: sizeGroups[`${part.length}x${part.width}x${part.thickness}`], sequence: absoluteSequence++, stackSize };
+                                                currentBoard.allPlacedParts.push(pObj);
+                                                pToPlace.placed = true;
+                                                curZ += (part.thickness + kerf);
+                                            });
+                                            const nextS = [];
+                                            if (space.w - orient.l - kerf > 0) nextS.push({ x: space.x + orient.l + kerf, y: space.y, w: space.w - orient.l - kerf, h: space.h });
+                                            if (space.h - orient.w - kerf > 0) nextS.push({ x: space.x, y: space.y + orient.w + kerf, w: orient.l, h: space.h - orient.w - kerf });
+                                            boardSpaces.splice(spaceIdx, 1, ...nextS);
+                                            return;
+                                        }
+                                    }
                                 }
                             }
                         });
-                        if (boardRes.allPlacedParts.length > 0) layouts.push(boardRes);
+
+                        const zLevels = [...new Set(currentBoard.allPlacedParts.map(p => p.z))].sort((a,b)=>a-b);
+                        currentBoard.layers = zLevels.map(z => {
+                            const layerParts = currentBoard.allPlacedParts.filter(p => p.z === z);
+                            let layerSpaces = [{ x: 0, y: 0, w: s.length, h: s.width }];
+                            layerParts.forEach(p => {
+                                const idx = layerSpaces.findIndex(sp => p.x >= sp.x && p.y >= sp.y && p.x + p.actualL <= sp.x + sp.w && p.y + p.actualW <= sp.y + sp.h);
+                                if (idx !== -1) {
+                                    const sp = layerSpaces[idx];
+                                    const nextS = [];
+                                    if (sp.w - p.actualL - kerf > 0) nextS.push({ x: sp.x + p.actualL + kerf, y: sp.y, w: sp.w - p.actualL - kerf, h: sp.h });
+                                    if (sp.h - p.actualW - kerf > 0) nextS.push({ x: sp.x, y: sp.y + p.actualW + kerf, w: p.actualL, h: sp.h - p.actualW - kerf });
+                                    layerSpaces.splice(idx, 1, ...nextS);
+                                }
+                            });
+                            return { z, thickness: layerParts[0].thickness, parts: layerParts, wasteSpaces: layerSpaces.filter(sp => sp.w > 2 && sp.h > 2) };
+                        });
+                        const usedArea = currentBoard.allPlacedParts.reduce((acc, p) => acc + (p.length * p.width), 0);
+                        currentBoard.efficiency = (usedArea / (s.length * s.width)) * 100;
+                        finalLayouts.push(currentBoard);
                     }
                 });
-                setResults({ layouts });
+                setResults({ layouts: finalLayouts, unplaced: partsToPlace.filter(p => !p.placed) });
+                if (finalLayouts.length > 0) {
+                    const firstUsed = finalLayouts.find(l => l.allPlacedParts.length > 0);
+                    if (firstUsed) setExpandedBoards({ [firstUsed.boardId]: true });
+                }
             };
 
+            const handlePrint = () => {
+                setActiveTab('preview');
+                setTimeout(() => {
+                    window.print();
+                }, 100);
+            };
+
+            const BoardLayout = ({ board, isPrintMode = false }) => (
+                <div key={board.boardId} className={`bg-white rounded-3xl border shadow-sm overflow-hidden transition-all board-card ${board.allPlacedParts.length === 0 ? 'opacity-50 grayscale border-dashed border-slate-300 no-print' : 'border-slate-200'}`}>
+                    <div 
+                        onClick={() => board.allPlacedParts.length > 0 && !isPrintMode && setExpandedBoards(p=>({...p, [board.boardId]:!p[board.boardId]}))} 
+                        className={`p-5 flex justify-between items-center transition-colors select-none ${(board.allPlacedParts.length > 0 && !isPrintMode) ? 'cursor-pointer hover:bg-slate-50' : 'bg-slate-50/50'}`}
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black shadow-inner transition-colors ${board.allPlacedParts.length > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-400'}`}>{board.displayIdx}</div>
+                            <div>
+                                <h3 className="font-black text-sm text-slate-800 tracking-tight">{fromBase(board.length, unit)}×{fromBase(board.width, unit)}×{fromBase(board.thickness, unit)} {UNITS[unit].label}</h3>
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                                    {board.allPlacedParts.length > 0 ? `${t('efficiency')}: ${board.efficiency.toFixed(1)}%` : t('notUsed')}
+                                </p>
+                            </div>
+                        </div>
+                        {(board.allPlacedParts.length > 0 && !isPrintMode) && (
+                            <div className="text-slate-400 no-print">
+                                {expandedBoards[board.boardId] ? SVGIcons.ChevronUp(20) : SVGIcons.ChevronDown(20)}
+                            </div>
+                        )}
+                    </div>
+
+                    {(board.allPlacedParts.length > 0 && (expandedBoards[board.boardId] || isPrintMode)) && (
+                        <div className={`p-6 bg-slate-50/50 space-y-24 border-t border-slate-100 animate-in fade-in duration-300`}>
+                            <div className="space-y-32">
+                                {board.layers.map((l, i) => (
+                                    <div key={i} className="relative pt-20 px-4 md:px-10">
+                                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-white border-2 border-slate-200 px-6 py-2 rounded-full text-[10px] font-black uppercase shadow-md z-30 whitespace-nowrap text-slate-600 tracking-wider">
+                                            {t('layer')} {i+1} (Z = {fromBase(l.z, unit)} {UNITS[unit].label})
+                                        </div>
+                                        <div className="relative border-2 border-slate-300 bg-white shadow-2xl mx-auto" style={{height:'350px', width:'100%'}}>
+                                            <div className="absolute -top-12 left-1/2 -translate-x-1/2 text-[12px] font-bold text-slate-600 bg-white/95 px-4 py-1.5 rounded-full border-2 border-slate-200 shadow-md whitespace-nowrap z-20">
+                                                {fromBase(board.length, unit)} {UNITS[unit].label}
+                                            </div>
+                                            <div className="absolute -left-12 md:-left-20 top-1/2 -translate-y-1/2 -rotate-90 text-[12px] font-bold text-slate-600 bg-white/95 px-4 py-1.5 rounded-full border-2 border-slate-200 shadow-md whitespace-nowrap z-20">
+                                                {fromBase(board.width, unit)} {UNITS[unit].label}
+                                            </div>
+                                            {l.wasteSpaces.map((ws, wIdx) => <WasteBox key={wIdx} space={ws} board={board} />)}
+                                            {l.parts.map(p => <PartBox key={p.instanceId} part={p} board={board}/>)}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+
+            const SpecificationTable = ({ isPrintMode = false }) => (
+                <section className={`bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden spec-table-container ${isPrintMode ? 'force-expand' : ''}`}>
+                    <div className="p-6">
+                        <h2 className="text-[11px] font-black uppercase text-slate-800 mb-6 flex items-center gap-2 tracking-widest">
+                            {SVGIcons.Part(18, "text-amber-600")} {t('specification')}
+                        </h2>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-[11px] text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-slate-50 text-slate-400 font-black uppercase border-b border-slate-100">
+                                        <th className="px-4 py-4 tracking-wider">#</th>
+                                        <th className="px-4 py-4 tracking-wider">{t('board')}</th>
+                                        <th className="px-4 py-4 tracking-wider">{t('type')}</th>
+                                        <th className="px-4 py-4 text-center tracking-wider no-print">Plan</th>
+                                        <th className="px-4 py-4 tracking-wider">{t('dimensions')}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {results.layouts.flatMap(b => b.allPlacedParts).sort((a,b)=>a.sequence-b.sequence).map(p => {
+                                        const isRowSelected = highlightedId === p.instanceId;
+                                        return (
+                                            <tr 
+                                                key={p.instanceId} 
+                                                className={`border-b border-slate-50 transition-all cursor-pointer ${isRowSelected ? 'bg-amber-100 ring-2 ring-amber-500 ring-inset z-10 relative' : 'hover:bg-slate-50'}`} 
+                                                onClick={() => setHighlightedId(p.instanceId)}
+                                            >
+                                                <td className="px-4 py-3 font-black text-slate-400">#{p.sequence}</td>
+                                                <td className="px-4 py-3 font-bold text-slate-600 tracking-tight">{t('board')} {results.layouts.find(l=>l.allPlacedParts.includes(p))?.displayIdx}</td>
+                                                <td className="px-4 py-3">
+                                                    {p.stackSize > 1 ? (
+                                                        <span className="inline-flex items-center gap-1.5 bg-amber-500 text-white px-2 py-0.5 rounded-full font-black text-[9px] uppercase tracking-tighter shadow-sm">
+                                                            {t('stack')} x{p.stackSize}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1.5 text-slate-400 font-bold">
+                                                            {t('single')}
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3 no-print">
+                                                    <div className="flex justify-center">
+                                                        <CutDiagram part={p} board={results.layouts.find(l => l.allPlacedParts.some(ap => ap.instanceId === p.instanceId))}/>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 font-black text-slate-800 whitespace-nowrap">
+                                                    {fromBase(p.actualL, unit)} × {fromBase(p.actualW, unit)} × {fromBase(p.thickness, unit)} {UNITS[unit].label}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div className="bg-slate-50 border-t border-slate-200 p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('totalStockArea')}</p>
+                            <p className="text-sm font-black text-slate-800">{formatAreaMeters(totals?.stock || 0)}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('totalPartsArea')}</p>
+                            <p className="text-sm font-black text-amber-600">
+                                {formatAreaMeters(totals?.parts || 0)} <span className="text-xs text-amber-400 font-medium">({totals?.partsPct.toFixed(1)}%)</span>
+                            </p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('totalWasteArea')}</p>
+                            <p className="text-sm font-black text-slate-500">
+                                {formatAreaMeters(totals?.waste || 0)} <span className="text-xs text-slate-300 font-medium">({totals?.wastePct.toFixed(1)}%)</span>
+                            </p>
+                        </div>
+                    </div>
+                </section>
+            );
+
+            const PartBox = ({ part, board }) => {
+                const isHighlighted = highlightedId === part.instanceId;
+                return (
+                    <div 
+                        className={`absolute border border-black/20 text-white flex flex-col items-center justify-center transition-all cursor-pointer group hover:brightness-110 shadow-sm ${isHighlighted ? 'part-highlighted' : ''}`}
+                        style={{ left: `${(part.x/board.length)*100}%`, top: `${(part.y/board.width)*100}%`, width: `${(part.actualL/board.length)*100}%`, height: `${(part.actualW/board.width)*100}%`, backgroundColor: part.color }}
+                        onClick={() => setHighlightedId(part.instanceId)}
+                    >
+                        <div className="absolute top-0.5 left-1 flex gap-1 items-center">
+                            <span className="bg-black/30 px-1 rounded text-[8px] font-bold">#{part.sequence}</span>
+                            {part.stackSize > 1 && <span className="bg-amber-400 text-black px-1 rounded text-[8px] font-bold border border-amber-600 shadow-sm">x{part.stackSize}</span>}
+                        </div>
+                        <div className="text-[10px] font-semibold text-center leading-tight tracking-tight px-1 overflow-hidden w-full">
+                            <div className="truncate">{fromBase(part.actualL, unit)}</div>
+                            <div className="opacity-40 my-0.5 border-t border-white/40 w-full mx-auto"></div>
+                            <div className="truncate">{fromBase(part.actualW, unit)}</div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const WasteBox = ({ space, board }) => {
+                const isSmall = (space.w / board.length < 0.08) || (space.h / board.width < 0.08);
+                return (
+                    <div 
+                        className="absolute waste-hatch flex items-center justify-center overflow-hidden pointer-events-none"
+                        style={{ left: `${(space.x/board.length)*100}%`, top: `${(space.y/board.width)*100}%`, width: `${(space.w/board.length)*100}%`, height: `${(space.h/board.width)*100}%` }}
+                    >
+                        {!isSmall && (
+                            <div className="bg-white/70 backdrop-blur-[1px] px-1.5 py-0.5 rounded text-[8px] font-bold text-slate-500 whitespace-nowrap shadow-sm border border-slate-200">
+                                {fromBase(space.w, unit)}×{fromBase(space.h, unit)}
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            const CutDiagram = ({ part, board }) => (
+                <div className="relative w-12 h-8 bg-slate-200 border border-slate-300 rounded overflow-hidden shadow-inner">
+                    <div className="absolute bg-amber-500 border border-amber-700"
+                        style={{
+                            left: `${(part.x / board.length) * 100}%`,
+                            top: `${(part.y / board.width) * 100}%`,
+                            width: `${(part.actualL / board.length) * 100}%`,
+                            height: `${(part.actualW / board.width) * 100}%`,
+                        }}>
+                        <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-red-600 shadow-[0_0_3px_red] z-10"></div>
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600 shadow-[0_0_3px_red] z-10"></div>
+                    </div>
+                </div>
+            );
+
             const ThreeDView = ({ board }) => {
-                const ref = useRef();
+                const mountRef = useRef(null);
                 useEffect(() => {
                     const THREE = window.THREE;
-                    const sc = new THREE.Scene(); sc.background = new THREE.Color(0xf8fafc);
-                    const cam = new THREE.PerspectiveCamera(45, ref.current.clientWidth / 450, 1, 20000);
-                    const ren = new THREE.WebGLRenderer({ antialias: true });
-                    ren.setSize(ref.current.clientWidth, 450);
-                    ref.current.appendChild(ren.domElement);
-                    
-                    sc.add(new THREE.AmbientLight(0xffffff, 0.8));
-                    const l = new THREE.DirectionalLight(0xffffff, 0.6); l.position.set(1000, 1000, 1000); sc.add(l);
-                    
-                    const group = new THREE.Group();
-                    const bG = new THREE.BoxGeometry(board.length, board.thickness, board.width);
-                    const bM = new THREE.MeshPhongMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.3 });
-                    group.add(new THREE.Mesh(bG, bM));
-
+                    if (!THREE || !mountRef.current) return;
+                    const container = mountRef.current;
+                    const scene = new THREE.Scene(); scene.background = new THREE.Color(0xf8fafc);
+                    const width = container.clientWidth, height = 450;
+                    const camera = new THREE.PerspectiveCamera(45, width/height, 1, 30000);
+                    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                    renderer.setSize(width, height); container.appendChild(renderer.domElement);
+                    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+                    const dL = new THREE.DirectionalLight(0xffffff, 0.4); dL.position.set(1000, 1000, 1000); scene.add(dL);
+                    const root = new THREE.Group();
+                    const bGeom = new THREE.BoxGeometry(board.length, board.thickness, board.width);
+                    const bMesh = new THREE.Mesh(bGeom, new THREE.MeshPhongMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.35 }));
+                    root.add(bMesh);
+                    const bEdges = new THREE.LineSegments(new THREE.EdgesGeometry(bGeom), new THREE.LineBasicMaterial({ color: 0x1e293b, opacity: 0.8 }));
+                    root.add(bEdges);
                     board.allPlacedParts.forEach(p => {
-                        const pG = new THREE.BoxGeometry(p.length, p.thickness, p.width);
-                        const pM = new THREE.Mesh(pG, new THREE.MeshPhongMaterial({ color: 0xf59e0b }));
-                        pM.position.set(p.x + p.length/2 - board.length/2, p.z + p.thickness/2 - board.thickness/2, p.y + p.width/2 - board.width/2);
-                        group.add(pM);
+                        const pG = new THREE.BoxGeometry(p.actualL, p.thickness, p.actualW);
+                        const pM = new THREE.Mesh(pG, new THREE.MeshPhongMaterial({ color: p.color, shininess: 30 }));
+                        pM.position.set(p.x + p.actualL/2 - board.length/2, p.z + p.thickness/2 - board.thickness/2, p.y + p.actualW/2 - board.width/2);
+                        root.add(pM);
+                        const pE = new THREE.LineSegments(new THREE.EdgesGeometry(pG), new THREE.LineBasicMaterial({ color: 0x000000, opacity: 0.2 }));
+                        pE.position.copy(pM.position); root.add(pE);
                     });
-                    
-                    sc.add(group);
-                    cam.position.set(board.length, board.length, board.length);
-                    cam.lookAt(0,0,0);
-                    const anim = () => { ren.render(sc, cam); group.rotation.y += 0.002; requestAnimationFrame(anim); };
-                    anim();
-                    return () => { ren.dispose(); if(ref.current) ref.current.innerHTML = ''; };
+                    scene.add(root);
+                    let theta = Math.PI/4, phi = Math.PI/4, radius = Math.max(board.length, board.width) * 1.5;
+                    const update = () => {
+                        phi = Math.max(0.1, Math.min(Math.PI/2.1, phi));
+                        camera.position.set(radius * Math.sin(phi) * Math.cos(theta), radius * Math.cos(phi), radius * Math.sin(phi) * Math.sin(theta));
+                        camera.lookAt(0,0,0);
+                    };
+                    update();
+                    let drag = false, prev = { x: 0, y: 0 };
+                    const down = (e) => { drag = true; prev = { x: e.clientX, y: e.clientY }; };
+                    const move = (e) => { if (!drag) return; theta -= (e.clientX - prev.x) * 0.008; phi -= (e.clientY - prev.y) * 0.008; prev = { x: e.clientX, y: e.clientY }; update(); };
+                    const up = () => drag = false;
+                    const wheel = (e) => { e.preventDefault(); radius = Math.max(radius + e.deltaY * 0.4, 100); update(); };
+                    container.addEventListener('mousedown', down); window.addEventListener('mousemove', move); window.addEventListener('mouseup', up); container.addEventListener('wheel', wheel, { passive: false });
+                    let f; const anim = () => { f = requestAnimationFrame(anim); renderer.render(scene, camera); }; anim();
+                    return () => { 
+                        cancelAnimationFrame(f); container.removeEventListener('mousedown', down); window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); container.removeEventListener('wheel', wheel);
+                        renderer.dispose(); if (container) container.innerHTML = ''; 
+                    };
                 }, [board]);
-                return <div ref={ref} className="w-full rounded-2xl overflow-hidden border shadow-inner bg-slate-50" />;
+                return <div ref={mountRef} className="w-full h-[450px] bg-white rounded-2xl border border-slate-200 cursor-grab active:cursor-grabbing"></div>;
             };
 
             return (
-                <div className="p-6 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    <div className="lg:col-span-4 space-y-4">
-                        <header className="bg-white p-4 rounded-2xl shadow-sm border flex items-center gap-3">
-                            <div className="bg-amber-600 p-2 rounded-xl text-white"><Calculator /></div>
-                            <h1 className="text-xl font-black uppercase tracking-tight">WoodCut Pro</h1>
-                        </header>
-                        
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border space-y-4">
-                            <h3 className="text-xs font-bold text-slate-400 uppercase">Настройки</h3>
-                            <select value={unit} onChange={e => setUnit(e.target.value)} className="w-full p-2 border rounded-xl font-bold">
-                                {Object.keys(UNITS).map(u => <option key={u} value={u}>{UNITS[u].label}</option>)}
-                            </select>
-                            <div>
-                                <label className="text-xs text-slate-400 block mb-1">Ширина пропила ({UNITS[unit].label})</label>
-                                <input type="number" value={fromBase(kerf, unit)} onChange={e => setKerf(toBase(e.target.value, unit))} className="w-full p-2 border rounded-xl" />
-                            </div>
-                        </div>
+                <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6 pb-20">
+                    <div className="grid lg:grid-cols-12 gap-6">
+                        <div className="lg:col-span-4 space-y-4 no-print">
+                            <header className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-3">
+                                <div className="bg-amber-600 p-2 rounded-xl text-white shadow-inner">{SVGIcons.Calculator(24)}</div>
+                                <h1 className="text-xl font-black uppercase tracking-tight text-slate-800">{t('title')}</h1>
+                            </header>
 
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border">
-                            <h3 className="text-xs font-bold text-slate-400 uppercase mb-3">Заготовки</h3>
-                            {stock.map(s => (
-                                <div key={s.id} className="grid grid-cols-4 gap-2 mb-2">
-                                    <input type="number" value={fromBase(s.length, unit)} onChange={e => updateItemValue(setStock, s.id, 'length', e.target.value)} className="border rounded p-1 text-center" />
-                                    <input type="number" value={fromBase(s.width, unit)} onChange={e => updateItemValue(setStock, s.id, 'width', e.target.value)} className="border rounded p-1 text-center" />
-                                    <input type="number" value={fromBase(s.thickness, unit)} onChange={e => updateItemValue(setStock, s.id, 'thickness', e.target.value)} className="border rounded p-1 text-center" />
-                                    <input type="number" value={s.count} onChange={e => setStock(st => st.map(x => x.id === s.id ? {...x, count: +e.target.value}:x))} className="border rounded p-1 text-center bg-slate-50" />
+                            <section className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                                <h2 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
+                                    {SVGIcons.Settings(16, "text-amber-600")} {t('settings')}
+                                </h2>
+                                <div className="space-y-3 pl-1">
+                                    <div className="flex justify-between items-center text-[11px] font-bold text-slate-500">
+                                        <span className="flex items-center gap-2"> {t('units')}</span>
+                                        <select value={unit} onChange={e=>setUnit(e.target.value)} className="bg-slate-50 border rounded-lg p-1.5 outline-amber-500 text-[10px] font-bold">
+                                            {Object.keys(UNITS).map(u => <option key={u} value={u}>{UNITS[u].label}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="flex justify-between items-center text-[11px] font-bold text-slate-500">
+                                        <span className="flex items-center gap-2">{SVGIcons.Saw(16, "text-slate-400 animate-saw")} {t('kerf')} ({UNITS[unit].label})</span>
+                                        <input type="number" value={fromBase(kerf, unit)} onChange={e=>setKerf(toBase(e.target.value, unit))} className="w-16 p-1 bg-slate-50 border rounded text-center outline-amber-500 text-[11px] font-bold" />
+                                    </div>
+                                    <div className="flex justify-between items-center text-[11px] font-bold text-slate-500">
+                                        <span className="flex items-center gap-2">{SVGIcons.Globe(16, "text-slate-400")} {t('lang')}</span>
+                                        <select value={lang} onChange={e=>setLang(e.target.value)} className="bg-slate-50 border rounded-lg p-1.5 outline-amber-500 uppercase text-[10px] font-black">
+                                            <option value="ru">Русский</option>
+                                            <option value="en">English</option>
+                                            <option value="de">Deutsch</option>
+                                            <option value="es">Español</option>
+                                        </select>
+                                    </div>
+                                    <div className="flex justify-between items-center cursor-pointer group" onClick={()=>setResawPriority(!resawPriority)}>
+                                        <span className="text-[11px] font-bold text-slate-500 flex items-center gap-2 group-hover:text-amber-600 transition-colors">
+                                            {SVGIcons.Priority(16, "text-slate-400")} {t('resawPriority')}
+                                        </span>
+                                        <div className={`w-10 h-5 rounded-full transition-all relative ${resawPriority?'bg-amber-500 shadow-inner':'bg-slate-200'}`}>
+                                            <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all shadow-sm ${resawPriority?'left-6':'left-1'}`}></div>
+                                        </div>
+                                    </div>
                                 </div>
-                            ))}
+                            </section>
+
+                            <section className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+                                <h2 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
+                                    {SVGIcons.Stock(16, "text-amber-600")} {t('stock')} 
+                                    <span className="normal-case font-medium text-[9px] text-slate-300">({t('dimensions_hint')})</span>
+                                </h2>
+                                {stock.map(item => (
+                                    <div key={item.id} className={`flex gap-1.5 items-center p-2 rounded-xl border transition-all ${item.enabled ? 'bg-slate-50 border-slate-200 shadow-sm' : 'bg-slate-100 opacity-50 grayscale'}`}>
+                                        <input type="checkbox" checked={item.enabled} onChange={()=>toggleEnabled(setStock, item.id)} className="w-4 h-4 accent-amber-600 rounded cursor-pointer" />
+                                        <input type="number" placeholder={t('len_abbr')} value={fromBase(item.length, unit, true)} onChange={e=>updateValue(setStock, item.id, 'length', e.target.value)} className="w-full text-xs font-bold p-1 rounded border outline-amber-500 input-no-spinner" />
+                                        <input type="number" placeholder={t('wid_abbr')} value={fromBase(item.width, unit, true)} onChange={e=>updateValue(setStock, item.id, 'width', e.target.value)} className="w-full text-xs font-bold p-1 rounded border outline-amber-500 input-no-spinner" />
+                                        <input type="number" placeholder={t('thk_abbr')} value={fromBase(item.thickness, unit, true)} onChange={e=>updateValue(setStock, item.id, 'thickness', e.target.value)} className="w-full text-xs font-bold p-1 rounded border outline-amber-500 input-no-spinner" />
+                                        <input type="number" value={item.count} min="1" onChange={e=>updateValue(setStock, item.id, 'count', e.target.value)} className="w-12 text-xs font-bold p-1 rounded border text-center outline-amber-500" />
+                                        <button onClick={()=>removeItem(setStock, item.id)} className="p-1.5 text-slate-300 hover:text-red-500 transition-colors btn-trash">
+                                            {SVGIcons.Trash(18)}
+                                        </button>
+                                    </div>
+                                ))}
+                                <button onClick={()=>addItem(setStock)} className="w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-xs font-bold text-slate-400 hover:border-amber-400 hover:text-amber-500 transition-all flex items-center justify-center gap-1 shadow-sm">
+                                    {SVGIcons.Plus(12)} {t('addStock')}
+                                </button>
+                            </section>
+
+                            <section className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+                                <h2 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
+                                    {SVGIcons.Part(16, "text-amber-600")} {t('parts')}
+                                    <span className="normal-case font-medium text-[9px] text-slate-300">({t('dimensions_hint')})</span>
+                                </h2>
+                                {parts.map(item => (
+                                    <div key={item.id} className={`flex gap-1.5 items-center p-2 rounded-xl border transition-all ${item.enabled ? 'bg-amber-50/20 border-amber-100 shadow-sm' : 'bg-slate-100 opacity-50 grayscale'}`}>
+                                        <input type="checkbox" checked={item.enabled} onChange={()=>toggleEnabled(setParts, item.id)} className="w-4 h-4 accent-amber-600 rounded cursor-pointer" />
+                                        <input type="number" placeholder={t('len_abbr')} value={fromBase(item.length, unit, true)} onChange={e=>updateValue(setParts, item.id, 'length', e.target.value)} className="w-full text-xs font-bold p-1 rounded border outline-amber-500 input-no-spinner" />
+                                        <input type="number" placeholder={t('wid_abbr')} value={fromBase(item.width, unit, true)} onChange={e=>updateValue(setParts, item.id, 'width', e.target.value)} className="w-full text-xs font-bold p-1 rounded border outline-amber-500 input-no-spinner" />
+                                        <input type="number" placeholder={t('thk_abbr')} value={fromBase(item.thickness, unit, true)} onChange={e=>updateValue(setParts, item.id, 'thickness', e.target.value)} className="w-full text-xs font-bold p-1 rounded border outline-amber-500 input-no-spinner" />
+                                        <input type="number" value={item.count} min="1" onChange={e=>updateValue(setParts, item.id, 'count', e.target.value)} className="w-12 text-xs font-bold p-1 rounded border text-center outline-amber-500" />
+                                        <button onClick={()=>removeItem(setParts, item.id)} className="p-1.5 text-slate-300 hover:text-red-500 transition-colors btn-trash">
+                                            {SVGIcons.Trash(18)}
+                                        </button>
+                                    </div>
+                                ))}
+                                <button onClick={()=>addItem(setParts)} className="w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-xs font-bold text-slate-400 hover:border-amber-400 hover:text-amber-500 transition-all flex items-center justify-center gap-1 shadow-sm">
+                                    {SVGIcons.Plus(12)} {t('addPart')}
+                                </button>
+                            </section>
+
+                            <button onClick={calculateLayout} className="w-full py-4 bg-amber-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg hover:bg-amber-700 transition-all active:scale-95 flex items-center justify-center gap-2">
+                                {SVGIcons.Calculator(20)} {t('calculate')}
+                            </button>
                         </div>
 
-                        <button onClick={calculateLayout} className="w-full py-4 bg-amber-600 text-white rounded-2xl font-black uppercase shadow-lg shadow-amber-200 hover:bg-amber-700 transition-all">Рассчитать раскрой</button>
-                    </div>
-
-                    <div className="lg:col-span-8 space-y-6">
-                        {!results ? <div className="h-96 border-2 border-dashed rounded-3xl flex items-center justify-center text-slate-300 font-bold uppercase tracking-widest">Ожидание расчета...</div> : 
-                        <div>
-                            <div className="flex gap-2 mb-6">
-                                <button onClick={()=>setActiveTab('layers')} className={`px-6 py-2 rounded-xl font-bold transition ${activeTab==='layers'?'bg-amber-600 text-white shadow-md':'bg-white text-slate-400 border'}`}>2D Слои</button>
-                                <button onClick={()=>setActiveTab('3d')} className={`px-6 py-2 rounded-xl font-bold transition ${activeTab==='3d'?'bg-amber-600 text-white shadow-md':'bg-white text-slate-400 border'}`}>3D Модель</button>
-                            </div>
-                            {results.layouts.map(b => (
-                                <div key={b.boardId} className="bg-white rounded-3xl border p-6 mb-6">
-                                    <h3 className="font-bold mb-4 text-slate-700">Лист: {fromBase(b.length, unit)}x{fromBase(b.width, unit)}x{fromBase(b.thickness, unit)}</h3>
-                                    {activeTab === 'layers' ? (
-                                        <div className="relative border-2 border-slate-100 bg-slate-50" style={{height:'400px', width:'100%'}}>
-                                            {b.allPlacedParts.map(p => (
-                                                <div key={p.instId} className="absolute border border-amber-800/30 text-white flex items-center justify-center text-[10px] font-bold" 
-                                                style={{left:`${p.x/b.length*100}%`, top:`${p.y/b.width*100}%`, width:`${p.length/b.length*100}%`, height:`${p.width/b.width*100}%`, backgroundColor:'#f59e0b'}}>
-                                                    {p.length}x{p.width}
-                                                </div>
+                        <div className="lg:col-span-8 space-y-6">
+                            {!results ? (
+                                <div className="h-[500px] flex flex-col items-center justify-center bg-white rounded-3xl border-2 border-dashed border-slate-200 text-slate-300 font-bold uppercase tracking-widest shadow-inner no-print">
+                                    <div className="mb-4 opacity-10">{SVGIcons.Stock(64)}</div>
+                                    {t('waiting')}
+                                </div>
+                            ) : (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                    <div className="flex flex-wrap items-center justify-between gap-3 no-print">
+                                        <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                                            {['layers', '3d', 'preview'].map(tab => (
+                                                <button 
+                                                    key={tab}
+                                                    onClick={()=>setActiveTab(tab)} 
+                                                    className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${activeTab===tab?'bg-amber-600 text-white shadow-md':'text-slate-400 hover:bg-slate-50'}`}
+                                                >
+                                                    {t(tab === 'layers' ? 'layers2d' : tab === '3d' ? 'view3d' : 'preview')}
+                                                </button>
                                             ))}
                                         </div>
-                                    ) : <ThreeDView board={b} />}
+                                        <button 
+                                            onClick={handlePrint}
+                                            className="px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-black uppercase shadow-sm hover:bg-slate-50 transition-all flex items-center gap-2"
+                                        >
+                                            {SVGIcons.Print(16)} {t('print')}
+                                        </button>
+                                    </div>
+
+                                    {activeTab === 'preview' ? (
+                                        <div className="space-y-10 bg-white p-8 rounded-3xl border border-slate-200 shadow-lg print:border-none print:shadow-none print:p-0">
+                                            <header className="flex justify-between items-start border-b-2 border-slate-100 pb-6 mb-10">
+                                                <div>
+                                                    <h1 className="text-3xl font-black text-slate-800 uppercase tracking-tighter">{t('title')}</h1>
+                                                    <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">{t('specification')}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-[10px] font-black text-slate-300 uppercase">{t('date')}</p>
+                                                    <p className="text-sm font-bold text-slate-600">{new Date().toLocaleDateString()}</p>
+                                                </div>
+                                            </header>
+
+                                            <div className="space-y-20">
+                                                {results.layouts.map(b => b.allPlacedParts.length > 0 && (
+                                                    <BoardLayout key={b.boardId} board={b} isPrintMode={true} />
+                                                ))}
+                                            </div>
+
+                                            <div className="page-break"></div>
+                                            <SpecificationTable isPrintMode={true} />
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {activeTab === 'layers' && results.layouts.map(b => (
+                                                <BoardLayout key={b.boardId} board={b} />
+                                            ))}
+                                            {activeTab === '3d' && results.layouts.map(b => b.allPlacedParts.length > 0 && (
+                                                <div key={b.boardId} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-6">
+                                                    <h3 className="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest">{t('board')} {b.displayIdx}</h3>
+                                                    <ThreeDView board={b} />
+                                                </div>
+                                            ))}
+                                            <div className="no-print">
+                                                <SpecificationTable />
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
-                            ))}
-                        </div>}
+                            )}
+                        </div>
                     </div>
                 </div>
             );
@@ -197,7 +881,6 @@
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
-        setTimeout(() => lucide.createIcons(), 1000);
     </script>
 </body>
 </html>
