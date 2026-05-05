@@ -4,36 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WoodCut Pro - Full Edition</title>
-    
-    <!-- Подключаем необходимые библиотеки -->
+    <!-- Библиотеки -->
     <script src="https://unpkg.com" crossorigin></script>
     <script src="https://unpkg.com" crossorigin></script>
     <script src="https://unpkg.com"></script>
     <script src="https://tailwindcss.com"></script>
     <script src="https://unpkg.com"></script>
     <script src="https://cloudflare.com"></script>
-
     <style>
         body { margin: 0; padding: 0; background-color: #f1f5f9; }
         #root { min-height: 100vh; }
+        canvas { display: block; border-radius: 1rem; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        canvas { display: block; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        // Эмуляция импортов для работы в браузере
+        // Инструменты
         const { useState, useMemo, useEffect, useRef } = React;
-        const { 
-          Trash2, Plus, Calculator, Square, Layers, Scissors, 
-          Table: TableIcon, ChevronDown, ChevronUp, 
-          Maximize2, Hash, Settings2, Box, BoxSelect, Copy 
-        } = lucide;
+        const { Trash2, Plus, Calculator, Square, Layers, Scissors, Table: TableIcon, ChevronDown, ChevronUp, Maximize2, Hash, Settings2, Box, BoxSelect, Copy } = lucide;
 
-        // ВСТАВЛЕННЫЙ КОД ИЗ ВАШЕГО PDF
+        // --- ВАШ КОД ИЗ PDF ---
         const App = () => {
             const UNITS = {
                 mm: { label: 'мм', factor: 1, precision: 0 },
@@ -44,13 +38,11 @@
 
             const [unit, setUnit] = useState('mm');
             const [resawPriority, setResawPriority] = useState(true);
-            const [stock, setStock] = useState([
-                { id: 1, length: 2000, width: 300, thickness: 40, count: 2, enabled: true }
-            ]);
+            const [stock, setStock] = useState([{ id: 1, length: 2000, width: 300, thickness: 40, count: 2, enabled: true }]);
             const [parts, setParts] = useState([
                 { id: 1, length: 820, width: 92, thickness: 18, count: 2, enabled: true },
                 { id: 2, length: 300, width: 100, thickness: 20, count: 4, enabled: true },
-                { id: 3, length: 100, width: 100, thickness: 20, count: 4, enabled: true },
+                { id: 3, length: 100, width: 100, thickness: 20, count: 4, enabled: true }
             ]);
             const [kerf, setKerf] = useState(3);
             const [results, setResults] = useState(null);
@@ -61,23 +53,12 @@
             const partColors = ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#ef4444', '#06b6d4', '#84cc16', '#f97316', '#6366f1'];
 
             const toBase = (val, currentUnit) => (parseFloat(val) || 0) * UNITS[currentUnit].factor;
-            const fromBase = (val, currentUnit) => {
-                const raw = val / UNITS[currentUnit].factor;
-                return parseFloat(raw.toFixed(UNITS[currentUnit].precision));
-            };
-
-            const format = (val) => {
-                const raw = val / UNITS[unit].factor;
-                return raw.toLocaleString(undefined, { 
-                    maximumFractionDigits: UNITS[unit].precision, 
-                    minimumFractionDigits: 0 
-                }) + ' ' + UNITS[unit].label;
-            };
+            const fromBase = (val, currentUnit) => (val / UNITS[currentUnit].factor).toFixed(UNITS[currentUnit].precision);
+            const format = (val) => (val / UNITS[unit].factor).toLocaleString() + ' ' + UNITS[unit].label;
 
             const toggleBoard = (id) => setExpandedBoards(prev => ({ ...prev, [id]: !prev[id] }));
             const addItem = (setter) => setter(prev => [...prev, { id: Date.now(), length: 0, width: 0, thickness: 0, count: 1, enabled: true }]);
             const removeItem = (setter, id) => setter(prev => prev.filter(item => item.id !== id));
-            
             const updateItemValue = (setter, id, field, value) => {
                 const baseValue = toBase(value, unit);
                 setter(prev => prev.map(item => item.id === id ? { ...item, [field]: baseValue } : item));
@@ -86,248 +67,138 @@
             const calculateLayout = () => {
                 const activeParts = [];
                 parts.filter(p => p.enabled).forEach(p => {
-                    for (let i = 0; i < p.count; i++) {
-                        activeParts.push({ ...p, instanceId: `${p.id}-${i}`, placed: false });
-                    }
+                    for (let i = 0; i < p.count; i++) activeParts.push({ ...p, instanceId: `${p.id}-${i}`, placed: false });
                 });
-
+                
                 const sizeGroups = {};
                 let colorIdx = 0;
                 activeParts.forEach(p => {
-                    const key = `${p.length}x${p.width}x${p.thickness}`;
-                    if (!sizeGroups[key]) {
-                        sizeGroups[key] = partColors[colorIdx % partColors.length];
-                        colorIdx++;
-                    }
+                    const key = `${p.length}x${p.width}`;
+                    if (!sizeGroups[key]) sizeGroups[key] = partColors[colorIdx++ % partColors.length];
                 });
 
                 activeParts.sort((a, b) => (b.length * b.width) - (a.length * a.width));
-                const finalLayouts = [];
+                const layouts = [];
                 const activeStock = stock.filter(s => s.enabled);
-                let absoluteSequence = 1;
+                let sequence = 1;
 
                 activeStock.forEach((s, sIdx) => {
                     for (let i = 0; i < s.count; i++) {
-                        let currentBoardResults = {
-                            ...s,
-                            boardId: `board-${s.id}-${i}`,
-                            displayIdx: i + 1,
-                            allPlacedParts: [],
-                            layers: []
-                        };
+                        let boardRes = { ...s, boardId: `b-${s.id}-${i}`, displayIdx: i + 1, allPlacedParts: [], layers: [] };
+                        let spaces = [{ x: 0, y: 0, w: s.length, h: s.width }];
 
-                        const boardSpaces = [{ x: 0, y: 0, w: s.length, h: s.width }];
-
-                        activeParts.forEach((part) => {
+                        activeParts.forEach(part => {
                             if (part.placed) return;
-                            for (let spaceIdx = 0; spaceIdx < boardSpaces.length; spaceIdx++) {
-                                const space = boardSpaces[spaceIdx];
-                                const orientations = [{ l: part.length, w: part.width }, { l: part.width, w: part.length }];
-
-                                for (let orient of orientations) {
-                                    if (orient.l <= space.w && orient.w <= space.h) {
-                                        let stackLimit = resawPriority ? Math.floor((s.thickness + kerf) / (part.thickness + kerf)) : 1;
-                                        const identicalUnplaced = activeParts.filter(p => !p.placed && p.length === part.length && p.width === part.width && p.thickness === part.thickness).slice(0, stackLimit);
-                                        
-                                        if (identicalUnplaced.length > 0) {
-                                            let currentZ = 0;
-                                            const stackSize = identicalUnplaced.length;
-                                            identicalUnplaced.forEach((pToPlace) => {
-                                                const placed = {
-                                                    ...pToPlace, x: space.x, y: space.y, z: currentZ,
-                                                    actualL: orient.l, actualW: orient.w,
-                                                    color: sizeGroups[`${part.length}x${part.width}x${part.thickness}`],
-                                                    sequence: absoluteSequence++, stackSize: stackSize
-                                                };
-                                                currentBoardResults.allPlacedParts.push(placed);
-                                                pToPlace.placed = true;
-                                                currentZ += (part.thickness + kerf);
-                                            });
-
-                                            const newSpaces = [];
-                                            if (space.w - orient.l - kerf > 0) newSpaces.push({ x: space.x + orient.l + kerf, y: space.y, w: space.w - orient.l - kerf, h: space.h });
-                                            if (space.h - orient.w - kerf > 0) newSpaces.push({ x: space.x, y: space.y + orient.w + kerf, w: orient.l, h: space.h - orient.w - kerf });
-                                            boardSpaces.splice(spaceIdx, 1, ...newSpaces);
-                                            return;
-                                        }
+                            for (let j = 0; j < spaces.length; j++) {
+                                let sp = spaces[j];
+                                if (part.length <= sp.w && part.width <= sp.h) {
+                                    let stack = resawPriority ? Math.floor((s.thickness + kerf) / (part.thickness + kerf)) : 1;
+                                    let toPlace = activeParts.filter(p => !p.placed && p.length === part.length && p.width === part.width).slice(0, stack);
+                                    
+                                    if (toPlace.length > 0) {
+                                        let curZ = 0;
+                                        toPlace.forEach(p => {
+                                            const placed = { ...p, x: sp.x, y: sp.y, z: curZ, actualL: p.length, actualW: p.width, color: sizeGroups[`${p.length}x${p.width}`], sequence: sequence++, stackSize: toPlace.length };
+                                            boardRes.allPlacedParts.push(placed);
+                                            p.placed = true;
+                                            curZ += p.thickness + kerf;
+                                        });
+                                        let next = [];
+                                        if (sp.w - part.length - kerf > 0) next.push({ x: sp.x + part.length + kerf, y: sp.y, w: sp.w - part.length - kerf, h: sp.h });
+                                        if (sp.h - part.width - kerf > 0) next.push({ x: sp.x, y: sp.y + part.width + kerf, w: part.length, h: sp.h - part.width - kerf });
+                                        spaces.splice(j, 1, ...next);
+                                        return;
                                     }
                                 }
                             }
                         });
-
-                        const zLevels = [...new Set(currentBoardResults.allPlacedParts.map(p => p.z))].sort((a, b) => a - b);
-                        currentBoardResults.layers = zLevels.map(z => {
-                            const layerParts = currentBoardResults.allPlacedParts.filter(p => p.z === z);
-                            const layerSpaces = [{ x: 0, y: 0, w: s.length, h: s.width }];
-                            layerParts.forEach(p => {
-                                const sIdx = layerSpaces.findIndex(sp => p.x >= sp.x && p.y >= sp.y && p.x + p.actualL <= sp.x + sp.w && p.y + p.actualW <= sp.y + sp.h);
-                                if (sIdx !== -1) {
-                                    const sp = layerSpaces[sIdx];
-                                    const nextS = [];
-                                    if (sp.w - p.actualL - kerf > 0) nextS.push({ x: sp.x + p.actualL + kerf, y: sp.y, w: sp.w - p.actualL - kerf, h: sp.h });
-                                    if (sp.h - p.actualW - kerf > 0) nextS.push({ x: sp.x, y: sp.y + p.actualW + kerf, w: p.actualL, h: sp.h - p.actualW - kerf });
-                                    layerSpaces.splice(sIdx, 1, ...nextS);
-                                }
-                            });
-                            return { z, thickness: layerParts[0].thickness, parts: layerParts, wasteSpaces: layerSpaces.filter(sp => sp.w > 5 && sp.h > 5) };
-                        });
-
-                        const boardVol = s.length * s.width * s.thickness;
-                        const usedVol = currentBoardResults.allPlacedParts.reduce((acc, p) => acc + (p.length * p.width * p.thickness), 0);
-                        currentBoardResults.efficiency = (usedVol / boardVol) * 100;
-                        finalLayouts.push(currentBoardResults);
+                        const zLevels = [...new Set(boardRes.allPlacedParts.map(p => p.z))];
+                        boardRes.layers = zLevels.map(z => ({ z, parts: boardRes.allPlacedParts.filter(p => p.z === z), wasteSpaces: [] }));
+                        boardRes.efficiency = (boardRes.allPlacedParts.reduce((a, b) => a + (b.length * b.width * b.thickness), 0) / (s.length * s.width * s.thickness)) * 100;
+                        layouts.push(boardRes);
                     }
                 });
-                setResults({ layouts: finalLayouts, unplaced: activeParts.filter(p => !p.placed) });
-                if (finalLayouts.length > 0) setExpandedBoards({ [finalLayouts[0].boardId]: true });
+                setResults({ layouts });
+                setExpandedBoards({ [layouts[0]?.boardId]: true });
             };
 
-            const ThreeDView = ({ board, unitLabel }) => {
-                const mountRef = useRef(null);
+            const ThreeDView = ({ board }) => {
+                const ref = useRef();
                 useEffect(() => {
                     const THREE = window.THREE;
-                    const scene = new THREE.Scene();
-                    scene.background = new THREE.Color(0xf8fafc);
-                    const width = mountRef.current.clientWidth;
-                    const height = 450;
-                    const camera = new THREE.PerspectiveCamera(45, width / height, 1, 30000);
-                    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-                    renderer.setSize(width, height);
-                    mountRef.current.appendChild(renderer.domElement);
-                    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-                    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
-                    dirLight.position.set(1000, 1000, 1000);
-                    scene.add(dirLight);
-                    const mainGroup = new THREE.Group();
-                    scene.add(mainGroup);
-
-                    const boardGeom = new THREE.BoxGeometry(board.length, board.thickness, board.width);
-                    const boardMat = new THREE.MeshPhongMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.25 });
-                    mainGroup.add(new THREE.Mesh(boardGeom, boardMat));
-
-                    board.allPlacedParts.forEach(part => {
-                        const partGeom = new THREE.BoxGeometry(part.actualL, part.thickness, part.actualW);
-                        const partMesh = new THREE.Mesh(partGeom, new THREE.MeshPhongMaterial({ color: part.color }));
-                        partMesh.position.set((part.x + part.actualL / 2) - board.length / 2, (part.z + part.thickness / 2) - board.thickness / 2, (part.y + part.actualW / 2) - board.width / 2);
-                        mainGroup.add(partMesh);
+                    const sc = new THREE.Scene(); sc.background = new THREE.Color(0xf8fafc);
+                    const cam = new THREE.PerspectiveCamera(45, ref.current.clientWidth / 450, 1, 10000);
+                    const ren = new THREE.WebGLRenderer({ antialias: true });
+                    ren.setSize(ref.current.clientWidth, 450);
+                    ref.current.appendChild(ren.domElement);
+                    sc.add(new THREE.AmbientLight(0xffffff, 0.8));
+                    const l = new THREE.DirectionalLight(0xffffff, 0.5); l.position.set(1,1,1); sc.add(l);
+                    const g = new THREE.Group(); sc.add(g);
+                    
+                    const bG = new THREE.BoxGeometry(board.length, board.thickness, board.width);
+                    g.add(new THREE.Mesh(bG, new THREE.MeshPhongMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.3 })));
+                    
+                    board.allPlacedParts.forEach(p => {
+                        const pG = new THREE.BoxGeometry(p.actualL, p.thickness, p.actualW);
+                        const pM = new THREE.Mesh(pG, new THREE.MeshPhongMaterial({ color: p.color }));
+                        pM.position.set(p.x + p.actualL/2 - board.length/2, p.z + p.thickness/2 - board.thickness/2, p.y + p.actualW/2 - board.width/2);
+                        g.add(pM);
                     });
 
-                    let theta = Math.PI / 4, phi = Math.PI / 4, radius = Math.max(board.length, board.width) * 1.6;
-                    const animate = () => {
-                        camera.position.x = radius * Math.sin(phi) * Math.cos(theta);
-                        camera.position.y = radius * Math.cos(phi);
-                        camera.position.z = radius * Math.sin(phi) * Math.sin(theta);
-                        camera.lookAt(0, 0, 0);
-                        renderer.render(scene, camera);
-                        requestAnimationFrame(animate);
-                    };
-                    animate();
-
-                    const handleMove = (e) => { if(e.buttons === 1) { theta -= e.movementX * 0.01; phi -= e.movementY * 0.01; } };
-                    const handleWheel = (e) => { radius = Math.max(50, radius + e.deltaY * 0.5); };
-                    mountRef.current.addEventListener('mousemove', handleMove);
-                    mountRef.current.addEventListener('wheel', handleWheel);
-
-                    return () => { renderer.dispose(); };
+                    cam.position.set(board.length, board.length, board.length); cam.lookAt(0,0,0);
+                    const anim = () => { ren.render(sc, cam); g.rotation.y += 0.005; requestAnimationFrame(anim); };
+                    anim();
+                    return () => { ren.dispose(); if(ref.current) ref.current.innerHTML = ''; };
                 }, [board]);
-                return <div ref={mountRef} className="w-full h-[450px] bg-slate-50 rounded-2xl border" />;
+                return <div ref={ref} className="rounded-2xl overflow-hidden border" />;
             };
 
-            // Компоненты UI (упрощено для структуры файла)
-            const PartBox = ({ part, board }) => (
-                <div className="absolute border border-black/20 text-white flex flex-col items-center justify-center text-[10px] font-bold"
-                     style={{ left: `${(part.x / board.length) * 100}%`, top: `${(part.y / board.width) * 100}%`, 
-                              width: `${(part.actualL / board.length) * 100}%`, height: `${(part.actualW / board.width) * 100}%`, backgroundColor: part.color }}>
-                    #{part.sequence}
-                </div>
-            );
-
-            const WasteBox = ({ space, board }) => (
-                <div className="absolute border border-dashed border-slate-300 opacity-30"
-                     style={{ left: `${(space.x / board.length) * 100}%`, top: `${(space.y / board.width) * 100}%`, 
-                              width: `${(space.w / board.length) * 100}%`, height: `${(space.h / board.width) * 100}%`,
-                              background: 'repeating-linear-gradient(45deg, transparent, transparent 5px, #ccc 5px, #ccc 10px)' }} />
-            );
-
             return (
-                <div className="min-h-screen bg-slate-100 p-6 font-sans text-slate-900">
-                    <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div className="p-6 max-w-7xl mx-auto">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                         <div className="lg:col-span-4 space-y-4">
-                            <header className="bg-white p-4 rounded-2xl shadow-sm border flex items-center gap-3">
-                                <div className="bg-amber-600 p-2 rounded-xl text-white"><Calculator size={24} /></div>
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border flex items-center gap-3">
+                                <div className="bg-amber-600 p-2 rounded-xl text-white"><Calculator/></div>
                                 <h1 className="text-xl font-black uppercase">WoodCut Pro</h1>
-                            </header>
-                            
-                            <section className="bg-white p-4 rounded-2xl shadow-sm border space-y-4">
-                                <div className="flex justify-between"><span>Ед. измерения</span>
-                                    <select value={unit} onChange={(e)=>setUnit(e.target.value)} className="border rounded px-2">
-                                        {Object.keys(UNITS).map(u => <option key={u} value={u}>{UNITS[u].label}</option>)}
-                                    </select>
-                                </div>
-                                <div className="flex justify-between"><span>Пропил ({UNITS[unit].label})</span>
-                                    <input type="number" value={fromBase(kerf, unit)} onChange={(e)=>setKerf(toBase(e.target.value, unit))} className="w-16 border text-center" />
-                                </div>
-                            </section>
-
-                            <section className="bg-white p-4 rounded-2xl shadow-sm border">
-                                <div className="flex justify-between items-center mb-2"><h2 className="text-xs font-bold uppercase text-slate-400">Заготовки</h2><button onClick={()=>addItem(setStock)} className="text-amber-600"><Plus/></button></div>
-                                {stock.map(s => (
-                                    <div key={s.id} className="flex gap-1 mb-2">
-                                        <input type="number" placeholder="Д" value={fromBase(s.length, unit)} onChange={(e)=>updateItemValue(setStock, s.id, 'length', e.target.value)} className="w-full border text-xs p-1" />
-                                        <input type="number" placeholder="Ш" value={fromBase(s.width, unit)} onChange={(e)=>updateItemValue(setStock, s.id, 'width', e.target.value)} className="w-full border text-xs p-1" />
-                                        <input type="number" placeholder="Т" value={fromBase(s.thickness, unit)} onChange={(e)=>updateItemValue(setStock, s.id, 'thickness', e.target.value)} className="w-full border text-xs p-1" />
-                                        <input type="number" placeholder="шт" value={s.count} onChange={(e)=>setStock(prev => prev.map(item => item.id === s.id ? {...item, count: parseInt(e.target.value)} : item))} className="w-12 border text-xs text-center" />
-                                    </div>
-                                ))}
-                            </section>
-
-                            <section className="bg-white p-4 rounded-2xl shadow-sm border">
-                                <div className="flex justify-between items-center mb-2"><h2 className="text-xs font-bold uppercase text-slate-400">Детали</h2><button onClick={()=>addItem(setParts)} className="text-amber-600"><Plus/></button></div>
-                                {parts.map(p => (
-                                    <div key={p.id} className="flex gap-1 mb-2">
-                                        <input type="number" placeholder="Д" value={fromBase(p.length, unit)} onChange={(e)=>updateItemValue(setParts, p.id, 'length', e.target.value)} className="w-full border text-xs p-1" />
-                                        <input type="number" placeholder="Ш" value={fromBase(p.width, unit)} onChange={(e)=>updateItemValue(setParts, p.id, 'width', e.target.value)} className="w-full border text-xs p-1" />
-                                        <input type="number" placeholder="Т" value={fromBase(p.thickness, unit)} onChange={(e)=>updateItemValue(setParts, p.id, 'thickness', e.target.value)} className="w-full border text-xs p-1" />
-                                        <input type="number" placeholder="шт" value={p.count} onChange={(e)=>setParts(prev => prev.map(item => item.id === p.id ? {...item, count: parseInt(e.target.value)} : item))} className="w-12 border text-xs text-center" />
-                                    </div>
-                                ))}
-                            </section>
-
-                            <button onClick={calculateLayout} className="w-full py-4 bg-amber-600 text-white rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-amber-700 transition-all">Рассчитать</button>
+                            </div>
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border space-y-4">
+                                <select value={unit} onChange={e => setUnit(e.target.value)} className="w-full p-2 border rounded-xl font-bold">
+                                    {Object.keys(UNITS).map(u => <option key={u} value={u}>{UNITS[u].label}</option>)}
+                                </select>
+                                <button onClick={calculateLayout} className="w-full py-4 bg-amber-600 text-white rounded-2xl font-black uppercase shadow-lg">Рассчитать</button>
+                            </div>
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border">
+                                <h3 className="text-xs font-bold text-slate-400 mb-2 uppercase">Заготовки</h3>
+                                {stock.map(s => <div key={s.id} className="flex gap-1 mb-1">
+                                    <input type="number" value={fromBase(s.length, unit)} onChange={e => updateItemValue(setStock, s.id, 'length', e.target.value)} className="w-full border rounded p-1 text-xs"/>
+                                    <input type="number" value={fromBase(s.width, unit)} onChange={e => updateItemValue(setStock, s.id, 'width', e.target.value)} className="w-full border rounded p-1 text-xs"/>
+                                    <input type="number" value={s.count} onChange={e => setStock(st => st.map(x => x.id === s.id ? {...x, count: +e.target.value} : x))} className="w-12 border rounded p-1 text-xs"/>
+                                </div>)}
+                            </div>
                         </div>
-
-                        <div className="lg:col-span-8 space-y-6">
-                            {!results ? (
-                                <div className="h-full min-h-[400px] flex items-center justify-center bg-white rounded-3xl border-2 border-dashed border-slate-200 text-slate-300 font-bold uppercase">Готов к расчету</div>
-                            ) : (
-                                <>
-                                    <div className="flex gap-2 bg-white p-1 rounded-xl border w-fit">
-                                        <button onClick={()=>setActiveTab('layers')} className={`px-4 py-2 rounded-lg text-xs font-bold ${activeTab==='layers' ? 'bg-amber-600 text-white':'text-slate-400'}`}>2D Слои</button>
-                                        <button onClick={()=>setActiveTab('3d')} className={`px-4 py-2 rounded-lg text-xs font-bold ${activeTab==='3d' ? 'bg-amber-600 text-white':'text-slate-400'}`}>3D Вид</button>
-                                    </div>
-                                    
-                                    {results.layouts.map(board => (
-                                        <div key={board.boardId} className="bg-white rounded-3xl border overflow-hidden">
-                                            <div className="p-4 border-b flex justify-between items-center">
-                                                <h3 className="font-bold">Лист {board.displayIdx}: {fromBase(board.length, unit)}x{fromBase(board.width, unit)} ({board.efficiency.toFixed(1)}%)</h3>
-                                            </div>
-                                            <div className="p-6">
-                                                {activeTab === 'layers' ? (
-                                                    board.layers.map((layer, idx) => (
-                                                        <div key={idx} className="mb-10">
-                                                            <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase">Слой {idx+1} (Z={fromBase(layer.z, unit)})</p>
-                                                            <div className="relative border-2 border-slate-200 bg-white shadow-lg mx-auto" style={{height:'300px', width:'100%'}}>
-                                                                {layer.wasteSpaces.map((w, wi) => <WasteBox key={wi} space={w} board={board} />)}
-                                                                {layer.parts.map(p => <PartBox key={p.instanceId} part={p} board={board} />)}
-                                                            </div>
-                                                        </div>
-                                                    ))
-                                                ) : <ThreeDView board={board} unitLabel={UNITS[unit].label} />}
-                                            </div>
+                        <div className="lg:col-span-8">
+                            {!results ? <div className="h-64 border-2 border-dashed rounded-3xl flex items-center justify-center text-slate-300 font-bold">ГОТОВ К РАБОТЕ</div> : 
+                            results.layouts.map(b => (
+                                <div key={b.boardId} className="bg-white rounded-3xl border mb-4 p-4 shadow-sm">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="font-bold">Лист {b.displayIdx} ({b.efficiency.toFixed(1)}%)</h3>
+                                        <div className="flex gap-2">
+                                            <button onClick={()=>setActiveTab('layers')} className={`px-3 py-1 rounded-lg text-xs font-bold ${activeTab==='layers'?'bg-amber-600 text-white':'bg-slate-100'}`}>2D</button>
+                                            <button onClick={()=>setActiveTab('3d')} className={`px-3 py-1 rounded-lg text-xs font-bold ${activeTab==='3d'?'bg-amber-600 text-white':'bg-slate-100'}`}>3D</button>
                                         </div>
-                                    ))}
-                                </>
-                            )}
+                                    </div>
+                                    {activeTab === 'layers' ? b.layers.map((l, i) => (
+                                        <div key={i} className="relative border-2 bg-slate-50 mb-4" style={{height:'300px', width:'100%'}}>
+                                            {l.parts.map(p => (
+                                                <div key={p.sequence} className="absolute border border-black/20 text-white flex items-center justify-center text-[10px] font-bold" 
+                                                style={{left:`${p.x/b.length*100}%`, top:`${p.y/b.width*100}%`, width:`${p.actualL/b.length*100}%`, height:`${p.actualW/b.width*100}%`, backgroundColor:p.color}}>
+                                                    #{p.sequence}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )) : <ThreeDView board={b}/>}
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
