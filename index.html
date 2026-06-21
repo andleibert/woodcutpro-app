@@ -56,41 +56,104 @@
         }
 
         /* ТЕКСТУРА ВОЛОКОН ДЛЯ ЗАГОТОВОК И ДЕТАЛЕЙ */
-        .grain-horizontal {
-            background-image: repeating-linear-gradient(
-                0deg,
-                rgba(139, 92, 26, 0.03),
-                rgba(139, 92, 26, 0.03) 10px,
-                rgba(139, 92, 26, 0.07) 10px,
-                rgba(139, 92, 26, 0.07) 11px
-            );
+        .grain-horizontal { background-image: repeating-linear-gradient(0deg, rgba(139, 92, 26, 0.03), rgba(139, 92, 26, 0.03) 10px, rgba(139, 92, 26, 0.07) 10px, rgba(139, 92, 26, 0.07) 11px); }
+        .grain-vertical { background-image: repeating-linear-gradient(90deg, rgba(139, 92, 26, 0.03), rgba(139, 92, 26, 0.03) 10px, rgba(139, 92, 26, 0.07) 10px, rgba(139, 92, 26, 0.07) 11px); }
+        .part-grain-horizontal { background-image: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0) 8px, rgba(255, 255, 255, 0.08) 8px, rgba(255, 255, 255, 0.08) 9px); }
+        .part-grain-vertical { background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0) 8px, rgba(255, 255, 255, 0.08) 8px, rgba(255, 255, 255, 0.08) 9px); }
+
+        /* Обёртка контейнера раскроя для удержания размеров подписей */
+        .layer-box-wrapper {
+            position: relative;
+            --max-height: 320px;
         }
-        .grain-vertical {
-            background-image: repeating-linear-gradient(
-                90deg,
-                rgba(139, 92, 26, 0.03),
-                rgba(139, 92, 26, 0.03) 10px,
-                rgba(139, 92, 26, 0.07) 10px,
-                rgba(139, 92, 26, 0.07) 11px
-            );
+
+        /* --- CSS CONTAINER QUERIES ДЛЯ АДАПТИВНОГО ТЕКСТА В ТОНКИХ ДЕТАЛЯХ --- */
+        .part-box {
+            container-type: size;
+            position: absolute;
         }
-        .part-grain-horizontal {
-            background-image: repeating-linear-gradient(
-                0deg,
-                rgba(255, 255, 255, 0),
-                rgba(255, 255, 255, 0) 8px,
-                rgba(255, 255, 255, 0.08) 8px,
-                rgba(255, 255, 255, 0.08) 9px
-            );
+        
+        .dim-text-length {
+            position: absolute;
+            bottom: 2px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 9px;
+            font-weight: 900;
+            line-height: 1;
+            white-space: nowrap;
         }
-        .part-grain-vertical {
-            background-image: repeating-linear-gradient(
-                90deg,
-                rgba(255, 255, 255, 0),
-                rgba(255, 255, 255, 0) 8px,
-                rgba(255, 255, 255, 0.08) 8px,
-                rgba(255, 255, 255, 0.08) 9px
-            );
+        
+        .dim-text-width {
+            position: absolute;
+            left: 2px;
+            top: 50%;
+            transform: translateY(-50%) rotate(-90deg);
+            transform-origin: center;
+            font-size: 9px;
+            font-weight: 900;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        .part-badge-seq {
+            position: absolute;
+            top: 2px;
+            right: 4px;
+            background-color: rgba(0,0,0,0.3);
+            padding: 0 4px;
+            border-radius: 4px;
+            font-size: 8px;
+            font-weight: bold;
+            line-height: 1.2;
+        }
+
+        .part-badge-stack {
+            position: absolute;
+            top: 2px;
+            left: 4px;
+            background-color: #fbbf24;
+            color: black;
+            border: 1px solid #d97706;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            padding: 0 4px;
+            border-radius: 4px;
+            font-size: 8px;
+            font-weight: 900;
+            line-height: 1.2;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        /* Если деталь тонкая (<40px), центрируем элементы по вертикали */
+        @container (max-height: 40px) {
+            .dim-text-length { bottom: 50%; transform: translate(-50%, 50%); font-size: 8px; }
+            .dim-text-width { left: 1px; font-size: 8px; }
+            .part-badge-seq { top: 50%; transform: translateY(-50%); right: 2px; font-size: 7px; padding: 0 2px; }
+            .part-badge-stack { top: 50%; transform: translateY(-50%); left: 2px; font-size: 7px; padding: 0 2px; }
+        }
+
+        /* Если деталь сверхтонкая (<25px), скрываем боковой размер */
+        @container (max-height: 25px) {
+            .dim-text-width { display: none; }
+            .dim-text-length { font-size: 7px; }
+            .part-badge-seq { font-size: 6px; padding: 0 2px; right: 1px; }
+            .part-badge-stack { display: none; }
+        }
+
+        /* Если деталь слишком узкая (<40px) */
+        @container (max-width: 40px) {
+            .dim-text-length { display: none; }
+            .dim-text-width { left: 50%; transform: translate(-50%, -50%) rotate(-90deg); font-size: 8px; }
+            .part-badge-seq { top: auto; bottom: 2px; right: 50%; transform: translateX(50%); font-size: 7px; }
+            .part-badge-stack { display: none; }
+        }
+
+        /* Если это крошечный квадрат */
+        @container (max-width: 25px) and (max-height: 25px) {
+            .dim-text-length, .dim-text-width, .part-badge-stack { display: none; }
+            .part-badge-seq { top: 50%; left: 50%; transform: translate(-50%, -50%); right: auto; bottom: auto; }
         }
 
         /* КОМПАКТНЫЙ РЕЖИМ ПЕЧАТИ */
@@ -124,7 +187,9 @@
             h2, h3 { font-size: 10pt !important; margin-bottom: 2px !important; }
             
             .layer-container { padding-top: 0.4cm !important; }
-            .layer-box { height: 220px !important; border: 1px solid #ddd !important; }
+            
+            .layer-box-wrapper { --max-height: 220px !important; }
+            .layer-box { border: 1px solid #ddd !important; }
             
             .space-y-24 { gap: 1rem !important; } 
             .space-y-16 { gap: 0.5rem !important; }
@@ -138,12 +203,7 @@
                 background: #fafafa !important;
                 border-top: 1px solid #eee !important;
             }
-            .totals-footer > div { 
-                display: flex !important; 
-                align-items: center !important; 
-                gap: 8px !important; 
-                width: auto !important;
-            }
+            .totals-footer > div { display: flex !important; align-items: center !important; gap: 8px !important; width: auto !important; }
             .totals-footer p { margin: 0 !important; }
         }
     </style>
@@ -207,7 +267,11 @@
                 align_along: "Вдоль волокон",
                 align_across: "Поперек волокон",
                 align_any: "Любое",
-                grain_tooltip_desc: "Волокна"
+                grain_tooltip_desc: "Волокна",
+                project: "Проект",
+                saveProject: "Сохранить проект",
+                loadProject: "Загрузить проект",
+                importError: "Ошибка чтения файла проекта. Проверьте структуру JSON."
             },
             en: {
                 title: "WoodCut Pro",
@@ -261,7 +325,11 @@
                 align_along: "Along grain",
                 align_across: "Across grain",
                 align_any: "Any",
-                grain_tooltip_desc: "Grain"
+                grain_tooltip_desc: "Grain",
+                project: "Project",
+                saveProject: "Save Project",
+                loadProject: "Load Project",
+                importError: "Error reading project file. Verify JSON structure."
             },
             de: {
                 title: "WoodCut Pro",
@@ -315,7 +383,11 @@
                 align_along: "Längs zur Faser",
                 align_across: "Quer zur Faser",
                 align_any: "Egal",
-                grain_tooltip_desc: "Maserung"
+                grain_tooltip_desc: "Maserung",
+                project: "Projekt",
+                saveProject: "Projekt speichern",
+                loadProject: "Projekt laden",
+                importError: "Fehler beim Lesen des Projekts. JSON-Struktur prüfen."
             },
             es: {
                 title: "WoodCut Pro",
@@ -369,7 +441,11 @@
                 align_along: "A lo largo de la fibra",
                 align_across: "Transversal a la fibra",
                 align_any: "Cualquiera",
-                grain_tooltip_desc: "Veta"
+                grain_tooltip_desc: "Veta",
+                project: "Proyecto",
+                saveProject: "Guardar Proyecto",
+                loadProject: "Cargar Proyecto",
+                importError: "Error al leer el archivo. Verifique la estructura JSON."
             }
         };
 
@@ -466,6 +542,20 @@
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                 </svg>
+            ),
+            Save: (size, cls) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={cls}>
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                    <polyline points="17 21 17 13 7 13 7 21" />
+                    <polyline points="7 3 7 8 15 8" />
+                </svg>
+            ),
+            Load: (size, cls) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={cls}>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
             )
         };
 
@@ -482,18 +572,19 @@
             };
 
             const UNITS = {
-                mm: { label: 'mm', factor: 1, precision: 0 },
-                cm: { label: 'cm', factor: 10, precision: 1 },
-                m: { label: 'm', factor: 1000, precision: 3 },
-                in: { label: 'in', factor: 25.4, precision: 2 }
+                mm: { label: 'mm', factor: 1, precision: 2 },
+                cm: { label: 'cm', factor: 10, precision: 3 },
+                m: { label: 'm', factor: 1000, precision: 4 },
+                in: { label: 'in', factor: 25.4, precision: 3 }
             };
 
             const [unit, setUnit] = useState('mm');
             const [resawPriority, setResawPriority] = useState(true);
-            const [stock, setStock] = useState([{ id: '1', length: 2000, width: 300, thickness: 40, count: 2, enabled: true, grain: 'horizontal' }]);
+            const [stock, setStock] = useState([{ id: '1', length: 250, width: 8, thickness: 8, count: 1, enabled: true, grain: 'horizontal' }]);
             const [parts, setParts] = useState([
-                { id: 'p1', length: 820, width: 92, thickness: 18, count: 2, enabled: true, grain: 'along' },
-                { id: 'p2', length: 300, width: 100, thickness: 20, count: 4, enabled: true, grain: 'any' }
+                { id: 'p1', length: 90, width: 8, thickness: 8, count: 1, enabled: true, grain: 'along' },
+                { id: 'p2', length: 74, width: 8, thickness: 8, count: 1, enabled: true, grain: 'along' },
+                { id: 'p3', length: 64, width: 8, thickness: 8, count: 2, enabled: true, grain: 'along' }
             ]);
             const [kerf, setKerf] = useState(3);
             const [results, setResults] = useState(null);
@@ -502,7 +593,9 @@
             const [expandedBoards, setExpandedBoards] = useState({});
             const [highlightedId, setHighlightedId] = useState(null);
 
-            const partColors = ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#ef4444', '#06b6d4', '#84cc16'];
+            const fileInputRef = useRef(null);
+
+            const partColors = ['#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#84cc16', '#8b5cf6', '#06b6d4', '#ef4444'];
 
             const toBase = (val, currentUnit) => (parseFloat(val) || 0) * UNITS[currentUnit].factor;
             const fromBase = (val, currentUnit, isInput = false) => {
@@ -563,7 +656,6 @@
                 setter(prev => prev.map(item => item.id === id ? { ...item, enabled: !item.enabled } : item));
             };
 
-            // Проверка возможности размещения детали по волокнам
             const isOrientationValid = (part, board, orient) => {
                 const boardGrain = board.grain || 'horizontal';
                 const partGrain = part.grain || 'any';
@@ -622,20 +714,30 @@
                 const sortedForAlgo = [...ptsToPlace].sort((a, b) => (b.length * b.width) - (a.length * a.width));
                 const finalLayouts = [];
                 let absoluteSequence = 1;
+                let boardCounter = 1; 
 
-                activeStock.forEach(s => {
+                activeStock.forEach((s, sIdx) => {
                     for (let i = 0; i < s.count; i++) {
-                        let currentBoard = { ...s, boardId: `b-${s.id}-${i}`, displayIdx: i + 1, allPlacedParts: [], layers: [] };
+                        const currentBoardIndex = boardCounter++;
+                        let currentBoard = { 
+                            ...s, 
+                            boardId: `b-idx-${currentBoardIndex}`, 
+                            displayIdx: currentBoardIndex, 
+                            allPlacedParts: [], 
+                            layers: [] 
+                        };
                         const boardSpaces = [{ x: 0, y: 0, w: s.length, h: s.width }];
 
                         sortedForAlgo.forEach((part) => {
                             if (part.placed) return;
+
+                            if (part.thickness > s.thickness + 0.01) return;
+
                             for (let spaceIdx = 0; spaceIdx < boardSpaces.length; spaceIdx++) {
                                 const space = boardSpaces[spaceIdx];
                                 const orientations = [{ l: part.length, w: part.width }, { l: part.width, w: part.length }];
                                 for (let orient of orientations) {
                                     if (orient.l <= space.w && orient.w <= space.h) {
-                                        // Проверка соответствия направлению волокон
                                         if (!isOrientationValid(part, s, orient)) continue;
 
                                         let stackLimit = resawPriority ? Math.floor((s.thickness + kerf) / (part.thickness + kerf)) : 1;
@@ -694,25 +796,45 @@
                 setTimeout(() => window.print(), 300);
             };
 
-            const DimensionText = ({ length, width, color = "currentColor", boxW, boxH }) => {
-                const isVerySmall = boxW < 40 || boxH < 40;
-                const fontSize = isVerySmall ? 'text-[7px]' : 'text-[9px]';
+            const saveProjectToFile = () => {
+                const projectData = {
+                    unit,
+                    kerf,
+                    resawPriority,
+                    stock,
+                    parts
+                };
+                const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
+                    JSON.stringify(projectData, null, 2)
+                )}`;
+                const downloadAnchor = document.createElement('a');
+                downloadAnchor.setAttribute("href", jsonString);
+                downloadAnchor.setAttribute("download", `woodcut_project_${new Date().toISOString().slice(0,10)}.json`);
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                downloadAnchor.remove();
+            };
 
-                return (
-                    <div className="absolute inset-0 pointer-events-none select-none" style={{ color }}>
-                        {/* Длина - прижимаем к низу */}
-                        <div className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 ${fontSize} font-black leading-none whitespace-nowrap`}>
-                            {length}
-                        </div>
-                        {/* Ширина - прижимаем к левому краю, повернуто */}
-                        <div 
-                            className={`absolute left-0.5 top-1/2 -translate-y-1/2 ${fontSize} font-black leading-none origin-center whitespace-nowrap`}
-                            style={{ transform: 'translateY(-50%) rotate(-90deg)' }}
-                        >
-                            {width}
-                        </div>
-                    </div>
-                );
+            const loadProjectFromFile = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        if (data.unit) setUnit(data.unit);
+                        if (data.kerf !== undefined) setKerf(data.kerf);
+                        if (data.resawPriority !== undefined) setResawPriority(data.resawPriority);
+                        if (Array.isArray(data.stock)) setStock(data.stock);
+                        if (Array.isArray(data.parts)) setParts(data.parts);
+                        setResults(null); 
+                        setErrorMsg(null);
+                    } catch (err) {
+                        setErrorMsg(t('importError'));
+                    }
+                };
+                reader.readAsText(file);
+                e.target.value = null; 
             };
 
             const PartBox = ({ part, board }) => {
@@ -721,38 +843,26 @@
                 const dimW = fromBase(part.actualW, unit);
                 const dimT = fromBase(part.thickness, unit);
                 
-                const boxWidthPx = (part.actualL / board.length) * 800; 
-                const boxHeightPx = (part.actualW / board.width) * 320; 
-
-                // Определяем направление волокон на экране (если деталь повернута, меняется направление линий волокон)
                 const isRotated = part.actualL !== part.length;
                 const partGrainClass = isRotated ? 'part-grain-vertical' : 'part-grain-horizontal';
 
                 return (
                     <div 
-                        className={`absolute border border-black/20 text-white transition-all cursor-pointer group hover:brightness-110 shadow-sm ${partGrainClass} ${isHighlighted ? 'part-highlighted' : ''}`}
+                        className={`part-box border border-black/20 text-white transition-all cursor-pointer group hover:brightness-110 shadow-sm ${partGrainClass} ${isHighlighted ? 'part-highlighted' : ''}`}
                         style={{ left: `${(part.x/board.length)*100}%`, top: `${(part.y/board.width)*100}%`, width: `${(part.actualL/board.length)*100}%`, height: `${(part.actualW/board.width)*100}%`, backgroundColor: part.color }}
                         onClick={() => setHighlightedId(part.instanceId)}
                     >
-                        <div className="absolute top-0.5 right-1">
-                            <span className="bg-black/30 px-1 rounded text-[8px] font-bold leading-none">#{part.sequence}</span>
-                        </div>
+                        <div className="part-badge-seq">#{part.sequence}</div>
                         {part.stackSize > 1 && (
-                            <div className="absolute top-0.5 left-1">
-                                <span className="bg-amber-400 text-black px-1 rounded text-[8px] font-black border border-amber-600 shadow-sm leading-none flex items-center gap-0.5">
-                                    {SVGIcons.Copy(8)}x{part.stackSize}
-                                </span>
+                            <div className="part-badge-stack">
+                                {SVGIcons.Copy(8)}x{part.stackSize}
                             </div>
                         )}
-                        <DimensionText 
-                            length={dimL} 
-                            width={dimW} 
-                            color="white" 
-                            boxW={boxWidthPx}
-                            boxH={boxHeightPx}
-                        />
+                        
+                        <div className="dim-text-length">{dimL}</div>
+                        <div className="dim-text-width">{dimW}</div>
 
-                        {/* TOOLTIP (Всплывающая подсказка) */}
+                        {/* Tooltip */}
                         <div className="absolute opacity-0 group-hover:opacity-100 bg-slate-900 text-white text-[11px] p-2 rounded shadow-2xl pointer-events-none z-[100] whitespace-nowrap border border-white/20 bottom-full left-1/2 -translate-x-1/2 mb-2 transition-opacity duration-200">
                            <span className="font-black text-amber-400">{t('cut_num')}{part.sequence}</span>: {dimL} x {dimW} x {dimT} {UNITS[unit].label}
                            <div className="text-[10px] opacity-95 text-slate-300 mt-1 flex items-center gap-1">
@@ -775,17 +885,14 @@
 
                 return (
                     <div 
-                        className="absolute waste-hatch flex items-center justify-center overflow-hidden pointer-events-none"
+                        className="part-box waste-hatch flex items-center justify-center overflow-hidden pointer-events-none"
                         style={{ left: `${(space.x/board.length)*100}%`, top: `${(space.y/board.width)*100}%`, width: `${(space.w/board.length)*100}%`, height: `${(space.h/board.width)*100}%` }}
                     >
                         {isVisible && (
-                            <DimensionText 
-                                length={dimL} 
-                                width={dimW} 
-                                color="#64748b" 
-                                boxW={(space.w/board.length)*800}
-                                boxH={(space.h/board.width)*320}
-                            />
+                            <>
+                                <div className="dim-text-length" style={{ color: '#64748b' }}>{dimL}</div>
+                                <div className="dim-text-width" style={{ color: '#64748b' }}>{dimW}</div>
+                            </>
                         )}
                     </div>
                 );
@@ -810,7 +917,6 @@
             };
 
             const SpecificationTable = () => {
-                // ИСПРАВЛЕННАЯ СОРТИРОВКА: Сначала все резы по порядку sequence (#), затем не влезшие
                 const sortedParts = useMemo(() => {
                     if (!results) return [];
                     return [...results.allRequestedParts].sort((a, b) => {
@@ -829,7 +935,7 @@
                 }, [results]);
 
                 return (
-                    <section className={`bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden spec-table-container`}>
+                    <section className={`bg-white rounded-b-3xl border border-slate-200 border-t-0 shadow-sm overflow-hidden spec-table-container`}>
                         <div className="p-4 md:p-6 print:p-2">
                             <h2 className="text-[11px] font-black uppercase text-slate-800 mb-4 flex items-center gap-2 tracking-widest print:mb-1 print:text-[10pt]">
                                 {SVGIcons.ClipboardList(16, "text-amber-600")} {t('specification')}
@@ -888,7 +994,7 @@
                             </div>
                         </div>
                         
-                        <div className="bg-slate-50 border-t border-slate-200 p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 totals-footer print:grid-cols-1 print:flex print:flex-row print:justify-between print:gap-2 print:p-2">
+                        <div className="bg-slate-50 border-t border-slate-200 p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 totals-footer rounded-b-3xl print:grid-cols-1 print:flex print:flex-row print:justify-between print:gap-2 print:p-2">
                             <div className="space-y-1 print:space-y-0 print:flex print:items-center print:gap-2">
                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('totalStockArea')}:</p>
                                 <p className="text-sm font-black text-slate-800 print:text-[9pt]">{formatAreaMeters(totals?.stock || 0)}</p>
@@ -960,6 +1066,10 @@
                 return <div ref={mountRef} className="w-full h-[400px] bg-white rounded-2xl border border-slate-200 cursor-grab active:cursor-grabbing no-print"></div>;
             };
 
+            useEffect(() => {
+                calculateLayout();
+            }, []);
+
             return (
                 <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6 pb-20 print:p-0 print:space-y-2">
                     <div className="hidden print:block mb-4 border-b-2 border-slate-100 pb-2">
@@ -981,6 +1091,30 @@
                                 <h1 className="text-xl font-black uppercase tracking-tight text-slate-800">{t('title')}</h1>
                             </header>
 
+                            {/* БЛОК УПРАВЛЕНИЯ ФАЙЛАМИ ПРОЕКТА */}
+                            <section className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+                                <h2 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
+                                    {SVGIcons.Save(16, "text-amber-600")} {t('project')}
+                                </h2>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button onClick={saveProjectToFile} className="py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-700 hover:border-amber-500 hover:text-amber-600 hover:bg-amber-50/10 transition-all flex items-center justify-center gap-1.5 shadow-sm">
+                                        {SVGIcons.Save(12, "text-slate-500 group-hover:text-amber-600")}
+                                        <span>{t('saveProject')}</span>
+                                    </button>
+                                    <button onClick={() => fileInputRef.current.click()} className="py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-700 hover:border-amber-500 hover:text-amber-600 hover:bg-amber-50/10 transition-all flex items-center justify-center gap-1.5 shadow-sm">
+                                        {SVGIcons.Load(12, "text-slate-500 group-hover:text-amber-600")}
+                                        <span>{t('loadProject')}</span>
+                                    </button>
+                                    <input 
+                                        type="file" 
+                                        ref={fileInputRef} 
+                                        onChange={loadProjectFromFile} 
+                                        accept=".json" 
+                                        className="hidden" 
+                                    />
+                                </div>
+                            </section>
+
                             <section className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-4">
                                 <h2 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
                                     {SVGIcons.Settings(16, "text-amber-600")} {t('settings')}
@@ -994,7 +1128,7 @@
                                     </div>
                                     <div className="flex justify-between items-center text-[11px] font-bold text-slate-500">
                                         <span className="flex items-center gap-2">{SVGIcons.Saw(14, "text-slate-400 animate-saw")} {t('kerf')} ({UNITS[unit].label})</span>
-                                        <input type="number" value={fromBase(kerf, unit)} onChange={e=>setKerf(toBase(e.target.value, unit))} className="w-16 p-1 bg-slate-50 border rounded text-center outline-amber-500 text-[10px] font-bold" />
+                                        <input type="number" step="any" value={fromBase(kerf, unit)} onChange={e=>setKerf(toBase(e.target.value, unit))} className="w-16 p-1 bg-slate-50 border rounded text-center outline-amber-500 text-[10px] font-bold" />
                                     </div>
                                     <div className="flex justify-between items-center text-[11px] font-bold text-slate-500">
                                         <span className="flex items-center gap-2">{SVGIcons.Globe(14, "text-slate-400")} {t('lang')}</span>
@@ -1022,9 +1156,9 @@
                                 {stock.map(item => (
                                     <div key={item.id} className={`flex gap-1 items-center p-1.5 rounded-xl border transition-all ${item.enabled ? 'bg-slate-50 border-slate-200 shadow-sm' : 'bg-slate-100 opacity-50 grayscale'}`}>
                                         <input type="checkbox" checked={item.enabled} onChange={()=>toggleEnabled(setStock, item.id)} className="w-3.5 h-3.5 accent-amber-600 rounded cursor-pointer" />
-                                        <input type="number" placeholder={t('len_abbr')} value={fromBase(item.length, unit, true)} onChange={e=>updateValue(setStock, item.id, 'length', e.target.value)} className="w-full text-[10px] font-bold p-1 rounded border outline-amber-500 input-no-spinner animate-none" />
-                                        <input type="number" placeholder={t('wid_abbr')} value={fromBase(item.width, unit, true)} onChange={e=>updateValue(setStock, item.id, 'width', e.target.value)} className="w-full text-[10px] font-bold p-1 rounded border outline-amber-500 input-no-spinner" />
-                                        <input type="number" placeholder={t('thk_abbr')} value={fromBase(item.thickness, unit, true)} onChange={e=>updateValue(setStock, item.id, 'thickness', e.target.value)} className="w-full text-[10px] font-bold p-1 rounded border outline-amber-500 input-no-spinner" />
+                                        <input type="number" step="any" placeholder={t('len_abbr')} value={fromBase(item.length, unit, true)} onChange={e=>updateValue(setStock, item.id, 'length', e.target.value)} className="w-full text-[10px] font-bold p-1 rounded border outline-amber-500 input-no-spinner animate-none" />
+                                        <input type="number" step="any" placeholder={t('wid_abbr')} value={fromBase(item.width, unit, true)} onChange={e=>updateValue(setStock, item.id, 'width', e.target.value)} className="w-full text-[10px] font-bold p-1 rounded border outline-amber-500 input-no-spinner" />
+                                        <input type="number" step="any" placeholder={t('thk_abbr')} value={fromBase(item.thickness, unit, true)} onChange={e=>updateValue(setStock, item.id, 'thickness', e.target.value)} className="w-full text-[10px] font-bold p-1 rounded border outline-amber-500 input-no-spinner" />
                                         
                                         {/* НАПРАВЛЕНИЕ ВОЛОКОН ЗАГОТОВКИ */}
                                         <select value={item.grain || 'horizontal'} onChange={e=>updateValue(setStock, item.id, 'grain', e.target.value)} className="bg-white border rounded text-[9px] p-1 font-bold outline-amber-500 w-16 shrink-0" title={t('grainDirection')}>
@@ -1033,7 +1167,7 @@
                                             <option value="none">🚫 {t('grain_none')}</option>
                                         </select>
 
-                                        <input type="number" value={item.count} min="1" onChange={e=>updateValue(setStock, item.id, 'count', e.target.value)} className="w-10 text-[10px] font-bold p-1 rounded border text-center outline-amber-500 shrink-0" />
+                                        <input type="number" step="1" value={item.count} min="1" onChange={e=>updateValue(setStock, item.id, 'count', e.target.value)} className="w-10 text-[10px] font-bold p-1 rounded border text-center outline-amber-500 shrink-0" />
                                         <button onClick={()=>removeItem(setStock, item.id)} className="p-1 text-slate-300 hover:text-red-500 transition-colors btn-trash shrink-0">{SVGIcons.Trash(16)}</button>
                                     </div>
                                 ))}
@@ -1050,9 +1184,9 @@
                                 {parts.map(item => (
                                     <div key={item.id} className={`flex gap-1 items-center p-1.5 rounded-xl border transition-all ${item.enabled ? 'bg-amber-50/20 border-amber-100 shadow-sm' : 'bg-slate-100 opacity-50 grayscale'}`}>
                                         <input type="checkbox" checked={item.enabled} onChange={()=>toggleEnabled(setParts, item.id)} className="w-3.5 h-3.5 accent-amber-600 rounded cursor-pointer" />
-                                        <input type="number" placeholder={t('len_abbr')} value={fromBase(item.length, unit, true)} onChange={e=>updateValue(setParts, item.id, 'length', e.target.value)} className="w-full text-[10px] font-bold p-1 rounded border outline-amber-500 input-no-spinner" />
-                                        <input type="number" placeholder={t('wid_abbr')} value={fromBase(item.width, unit, true)} onChange={e=>updateValue(setParts, item.id, 'width', e.target.value)} className="w-full text-[10px] font-bold p-1 rounded border outline-amber-500 input-no-spinner" />
-                                        <input type="number" placeholder={t('thk_abbr')} value={fromBase(item.thickness, unit, true)} onChange={e=>updateValue(setParts, item.id, 'thickness', e.target.value)} className="w-full text-[10px] font-bold p-1 rounded border outline-amber-500 input-no-spinner" />
+                                        <input type="number" step="any" placeholder={t('len_abbr')} value={fromBase(item.length, unit, true)} onChange={e=>updateValue(setParts, item.id, 'length', e.target.value)} className="w-full text-[10px] font-bold p-1 rounded border outline-amber-500 input-no-spinner" />
+                                        <input type="number" step="any" placeholder={t('wid_abbr')} value={fromBase(item.width, unit, true)} onChange={e=>updateValue(setParts, item.id, 'width', e.target.value)} className="w-full text-[10px] font-bold p-1 rounded border outline-amber-500 input-no-spinner" />
+                                        <input type="number" step="any" placeholder={t('thk_abbr')} value={fromBase(item.thickness, unit, true)} onChange={e=>updateValue(setParts, item.id, 'thickness', e.target.value)} className="w-full text-[10px] font-bold p-1 rounded border outline-amber-500 input-no-spinner" />
                                         
                                         {/* НАПРАВЛЕНИЕ ВОЛОКОН ДЕТАЛИ */}
                                         <select value={item.grain || 'any'} onChange={e=>updateValue(setParts, item.id, 'grain', e.target.value)} className="bg-white border rounded text-[9px] p-1 font-bold outline-amber-500 w-16 shrink-0" title={t('grainAlignment')}>
@@ -1061,7 +1195,7 @@
                                             <option value="any">⇅ {t('align_any')}</option>
                                         </select>
 
-                                        <input type="number" value={item.count} min="1" onChange={e=>updateValue(setParts, item.id, 'count', e.target.value)} className="w-10 text-[10px] font-bold p-1 rounded border text-center outline-amber-500 shrink-0" />
+                                        <input type="number" step="1" value={item.count} min="1" onChange={e=>updateValue(setParts, item.id, 'count', e.target.value)} className="w-10 text-[10px] font-bold p-1 rounded border text-center outline-amber-500 shrink-0" />
                                         <button onClick={()=>removeItem(setParts, item.id)} className="p-1 text-slate-300 hover:text-red-500 transition-colors btn-trash shrink-0">{SVGIcons.Trash(16)}</button>
                                     </div>
                                 ))}
@@ -1100,13 +1234,14 @@
                                         </button>
                                     </div>
 
+                                    {/* Убрано overflow-hidden у карточки, чтобы боковые подписи не срезались на узких досках */}
                                     {results.layouts.map(b => {
                                         if (b.allPlacedParts.length === 0) return null;
                                         return (
-                                            <div key={b.boardId} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all board-card print:rounded-md">
+                                            <div key={b.boardId} className="bg-white rounded-3xl border border-slate-200 shadow-sm transition-all board-card print:rounded-md">
                                                 <div 
                                                     onClick={() => !window.matchMedia('print').matches && setExpandedBoards(p=>({...p, [b.boardId]:!p[b.boardId]}))} 
-                                                    className={`p-4 flex justify-between items-center transition-colors border-b select-none print:p-1 ${!window.matchMedia('print').matches ? 'cursor-pointer hover:bg-slate-50' : ''}`}
+                                                    className={`p-4 flex justify-between items-center transition-colors border-b border-slate-100 select-none print:p-1 ${!window.matchMedia('print').matches ? 'cursor-pointer hover:bg-slate-50' : ''}`}
                                                 >
                                                     <div className="flex items-center gap-3 print:gap-1">
                                                         <div className="w-7 h-7 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-black text-xs shadow-inner print:w-5 print:h-5 print:text-[8pt]">{b.displayIdx}</div>
@@ -1126,25 +1261,44 @@
                                                 </div>
 
                                                 {(expandedBoards[b.boardId] || window.matchMedia('print').matches) && (
-                                                    <div className="p-4 md:p-6 bg-slate-50/50 space-y-16 border-t border-slate-100 print:bg-white print-expand print:p-0 print:space-y-4 print:border-t-0">
+                                                    <div className="p-4 md:p-6 bg-slate-50/50 space-y-16 print:bg-white print-expand print:p-0 print:space-y-4 print:border-t-0">
                                                         {activeTab === 'layers' ? (
                                                             <div className="space-y-24 print:space-y-4">
                                                                 {b.layers.map((l, i) => (
-                                                                    <div key={i} className="relative pt-16 px-2 md:px-8 layer-container print:pt-4 print:px-2">
-                                                                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-white border border-slate-200 px-4 py-1.5 rounded-full text-[9px] font-black uppercase shadow-sm z-30 whitespace-nowrap text-slate-500 tracking-wider print:text-[7pt] print:px-2 print:py-0 print:top-0">
+                                                                    /* Увеличили боковые отступы px-12 md:px-16 для гарантии отсутствия "срезания" меток слева/справа */
+                                                                    <div key={i} className="relative pt-16 px-12 md:px-16 pb-8 layer-container print:pt-4 print:px-8 print:pb-4">
+                                                                        <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-white border border-slate-200 px-4 py-1.5 rounded-full text-[9px] font-black uppercase shadow-sm z-30 whitespace-nowrap text-slate-500 tracking-wider print:text-[7pt] print:px-2 print:py-0">
                                                                             {t('layer')} {i+1} (Z = {fromBase(l.z, unit)})
                                                                         </div>
+                                                                        
                                                                         <div 
-                                                                            className={`relative border border-slate-300 bg-white shadow-xl mx-auto layer-box print:shadow-none print:h-[200px] ${
-                                                                                b.grain === 'horizontal' ? 'grain-horizontal' : b.grain === 'vertical' ? 'grain-vertical' : ''
-                                                                            }`} 
-                                                                            style={{height:'320px', width:'100%'}}
+                                                                            className="relative w-full layer-box-wrapper print:shadow-none"
+                                                                            style={{
+                                                                                maxWidth: `calc(var(--max-height, 320px) * (${b.length} / ${b.width}))`,
+                                                                                margin: '0 auto'
+                                                                            }}
                                                                         >
-                                                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-400 bg-white/95 px-3 py-1 rounded-full border border-slate-100 shadow-sm z-20 no-print">{fromBase(b.length, unit)}</div>
-                                                                            <div className="absolute -left-12 top-1/2 -translate-y-1/2 -rotate-90 text-[10px] font-bold text-slate-400 bg-white/95 px-3 py-1 rounded-full border border-slate-100 shadow-sm z-20 no-print">{fromBase(b.width, unit)}</div>
+                                                                            <div 
+                                                                                style={{ 
+                                                                                    position: 'relative', 
+                                                                                    width: '100%', 
+                                                                                    paddingBottom: `${(b.width / b.length) * 100}%` 
+                                                                                }}
+                                                                            >
+                                                                                {/* Изменили скругление на rounded-sm, чтобы избежать эффекта "овала" у тонких заготовок */}
+                                                                                <div 
+                                                                                    className={`absolute inset-0 border border-slate-300 bg-white shadow-xl overflow-hidden rounded-sm layer-box print:shadow-none ${
+                                                                                        b.grain === 'horizontal' ? 'grain-horizontal' : b.grain === 'vertical' ? 'grain-vertical' : ''
+                                                                                    }`}
+                                                                                >
+                                                                                    {l.wasteSpaces.map((ws, wIdx) => <WasteBox key={wIdx} space={ws} board={b} />)}
+                                                                                    {l.parts.map(p => <PartBox key={p.instanceId} part={p} board={b}/>)}
+                                                                                </div>
+                                                                            </div>
                                                                             
-                                                                            {l.wasteSpaces.map((ws, wIdx) => <WasteBox key={wIdx} space={ws} board={b} />)}
-                                                                            {l.parts.map(p => <PartBox key={p.instanceId} part={p} board={b}/>)}
+                                                                            {/* Подписи габаритов заготовки, всегда выровненные точно по границам */}
+                                                                            <div className="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-500 bg-white/95 px-3 py-1 rounded-full border border-slate-200 shadow-sm z-20 no-print">{fromBase(b.length, unit)}</div>
+                                                                            <div className="absolute -left-10 top-1/2 -translate-y-1/2 -rotate-90 text-[10px] font-bold text-slate-500 bg-white/95 px-3 py-1 rounded-full border border-slate-200 shadow-sm z-20 no-print">{fromBase(b.width, unit)}</div>
                                                                         </div>
                                                                     </div>
                                                                 ))}
